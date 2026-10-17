@@ -1,8 +1,8 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.6.0
-   PHASE 6 - AQUARIUM & TREASURE
+   LUCKY FISHING v0.7.0
+   PHASE 7 - BOSS & ENDGAME
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
@@ -731,6 +731,72 @@ const TREASURE_ITEMS = {
 };
 
 /* =========================================
+   PHASE 7 — BOSS DATABASE
+========================================= */
+
+const BOSS_FISH = {
+  ancient: {
+    id: "ancient",
+    title: "The Ancient Guardian",
+    attack: "POWERFUL SURGE",
+    location: "crystal",
+    rod: 2,
+    firstReward: 500,
+    interval: 2.8,
+    power: 0.85
+  },
+
+  phantom: {
+    id: "phantom",
+    title: "The Ocean Hunter",
+    attack: "PHANTOM DASH",
+    location: "ocean",
+    rod: 3,
+    firstReward: 1500,
+    interval: 2.4,
+    power: 1.15
+  },
+
+  nocturne: {
+    id: "nocturne",
+    title: "The Moon Devourer",
+    attack: "LUNAR STRIKE",
+    location: "moonlight",
+    rod: 3,
+    firstReward: 3000,
+    interval: 2.2,
+    power: 1.3
+  },
+
+  leviathan: {
+    id: "leviathan",
+    title: "Ruler of the Abyss",
+    attack: "ABYSSAL WRATH",
+    location: "deep",
+    rod: 4,
+    firstReward: 8000,
+    interval: 1.9,
+    power: 1.55
+  }
+};
+
+const BOSS_IDS = Object.keys(BOSS_FISH);
+
+const BOSS_PHASES = [
+  "Approach",
+  "Resistance",
+  "Frenzy",
+  "Enraged"
+];
+
+function getBossStage(stamina) {
+  if (stamina > 75) return 1;
+  if (stamina > 45) return 2;
+  if (stamina > 15) return 3;
+  return 4;
+}
+
+/* =========================================
    PHASE 5 — LIVING WORLD CONFIG
 ========================================= */
 
@@ -946,8 +1012,11 @@ function formatWorldTime(minute) {
 
 function freshSave() {
   return {
-    version: 6,
+    version: 7,
     world: freshWorld(),
+
+    bossRecords: {},
+    achievements: [],
 
     aquariumLevel: 1,
     aquarium: [],
@@ -989,7 +1058,9 @@ function freshSave() {
       shinyCatches: 0,
       giantCatches: 0,
       treasuresFound: 0,
-      mapFragmentsFound: 0
+      mapFragmentsFound: 0,
+      bossVictories: 0,
+      bossEscapes: 0
     }
   };
 }
@@ -1059,6 +1130,10 @@ function readSave() {
       return {
         kind: "caught",
         id: item.id,
+        bossBonus:
+          Number.isFinite(item.bossBonus)
+            ? Math.max(0, Math.floor(item.bossBonus))
+            : 0,
         weather: Object.hasOwn(
           WEATHER_TYPES,
           item.weather
@@ -1295,12 +1370,64 @@ function readSave() {
         ? clamp(Math.floor(raw.mapFragments), 0, MAP_REQUIRED)
         : 0;
 
+    /* =========================================
+       MIGRATION v0.6 -> v0.7
+    ========================================= */
+
+    const bossRecords = {};
+
+    for (const id of BOSS_IDS) {
+      const old = raw.bossRecords?.[id];
+
+      if (!old || typeof old !== "object") continue;
+
+      bossRecords[id] = {
+        wins: Number.isFinite(old.wins)
+          ? Math.max(0, Math.floor(old.wins))
+          : 0,
+
+        largest: Number.isFinite(old.largest)
+          ? Math.max(0, old.largest)
+          : 0,
+
+        firstDefeated:
+          typeof old.firstDefeated === "string" &&
+          Number.isFinite(Date.parse(old.firstDefeated))
+            ? old.firstDefeated
+            : null
+      };
+    }
+
+    const achievements = Array.isArray(raw.achievements)
+      ? [...new Set(
+          raw.achievements.filter(id =>
+            typeof id === "string" &&
+            id.length > 0 &&
+            id.length <= 64
+          )
+        )]
+      : [];
+
+    stats.bossVictories = Number.isFinite(
+      raw.stats.bossVictories
+    )
+      ? Math.max(0, Math.floor(raw.stats.bossVictories))
+      : 0;
+
+    stats.bossEscapes = Number.isFinite(
+      raw.stats.bossEscapes
+    )
+      ? Math.max(0, Math.floor(raw.stats.bossEscapes))
+      : 0;
+
     return {
       ...defaults,
       ...raw,
 
-      version: 6,
+      version: 7,
       world,
+      bossRecords,
+      achievements,
 
       aquariumLevel,
       aquarium,
@@ -1331,10 +1458,20 @@ function readSave() {
 
 function writeSave() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    // Unlock achievements before saving,
+    // so rewards and unlock flags are atomic.
+    syncAchievements();
+
+    localStorage.setItem(
+      SAVE_KEY,
+      JSON.stringify(save)
+    );
+
     hasSavedGame = true;
   } catch {
-    showToast("Save gagal. Periksa penyimpanan browser.");
+    showToast(
+      "Save gagal. Periksa penyimpanan browser."
+    );
   }
 }
 
@@ -1351,6 +1488,7 @@ let toastTimer = null;
 let lastFrame = 0;
 
 const round = {
+  boss: null,
   conditions: null,
   bait: "worm",
   power: 0,
@@ -1364,6 +1502,372 @@ const round = {
   reel: false,
   nextDash: 0
 };
+
+/* =========================================
+   PHASE 7 — BOSS BATTLE ENGINE
+========================================= */
+
+function startBossBattle(fish, now) {
+  const config = BOSS_FISH[fish.id];
+
+  if (!config) {
+    round.boss = null;
+    return;
+  }
+
+  round.boss = {
+    id: fish.id,
+
+    stamina: 100,
+    stage: 1,
+
+    warning: false,
+    attackAt: 0,
+
+    nextAttack: now + 2200,
+
+    message: "🎣 Reel untuk menguras stamina boss.",
+    messageUntil: 0,
+    dodged: false
+  };
+
+  // Boss starts further away.
+  round.startDistance = 95 + fish.strength * 16;
+  round.distance = round.startDistance;
+
+  round.tension = 8;
+
+  showToast(
+    `⚠️ BOSS ENCOUNTER: ${config.title}!`
+  );
+}
+
+/* =========================================
+   BOSS ATTACK LOGIC
+========================================= */
+
+function executeBossAttack(now) {
+  const boss = round.boss;
+
+  if (!boss) return;
+
+  const config = BOSS_FISH[boss.id];
+
+  const stagePower = [0, 0.8, 1, 1.25, 1.55][boss.stage];
+
+  const attackPower = config.power * stagePower;
+
+  boss.warning = false;
+
+  if (round.reel) {
+    // The player did not release the reel.
+    round.tension += 20 * attackPower;
+    round.distance += 9 * attackPower;
+
+    boss.message =
+      `💥 ${config.attack}! Serangan mengenai tali!`;
+
+    boss.dodged = false;
+  } else {
+    // Releasing during a telegraphed attack
+    // significantly reduces the impact.
+    round.tension += 2 * attackPower;
+    round.distance += 3 * attackPower;
+
+    boss.message =
+      `✅ Serangan ${config.attack} berhasil dihindari!`;
+
+    boss.dodged = true;
+  }
+
+  boss.messageUntil = now + 1100;
+
+  const interval =
+    config.interval * (1 - (boss.stage - 1) * 0.1);
+
+  boss.nextAttack = now + interval * 1000;
+}
+
+/* =========================================
+   BOSS BATTLE UPDATE
+========================================= */
+
+function updateBossBattle(dt, now) {
+  const boss = round.boss;
+
+  if (!boss) return;
+
+  const config = BOSS_FISH[boss.id];
+  const fish = FISH_BY_ID[boss.id];
+
+  if (!config || !fish) return;
+
+  /* Stamina depletion */
+
+  if (round.reel) {
+    const staminaDamage =
+      24 +
+      save.reel * 2 -
+      fish.strength * 5;
+
+    boss.stamina = Math.max(
+      0,
+      boss.stamina - Math.max(10, staminaDamage) * dt
+    );
+  }
+
+  /* Phase progression */
+
+  const nextStage = getBossStage(boss.stamina);
+
+  if (nextStage !== boss.stage) {
+    boss.stage = nextStage;
+
+    boss.message =
+      `⚠️ PHASE ${boss.stage}: ` +
+      BOSS_PHASES[boss.stage - 1];
+
+    boss.messageUntil = now + 1100;
+
+    showToast(boss.message);
+  }
+
+  /* Additional late-phase aggression */
+
+  if (round.reel && boss.stage >= 3) {
+    round.tension +=
+      (boss.stage - 2) * config.power * 3 * dt;
+  }
+
+  /* Boss prepares a special attack */
+
+  if (
+    !boss.warning &&
+    now >= boss.nextAttack
+  ) {
+    boss.warning = true;
+
+    const warningDuration =
+      boss.stage >= 3 ? 750 : 1100;
+
+    boss.attackAt = now + warningDuration;
+
+    boss.message =
+      `⚠️ ${config.attack} — LEPASKAN REEL!`;
+
+    boss.dodged = false;
+  }
+
+  /* Execute attack after the warning */
+
+  if (
+    boss.warning &&
+    now >= boss.attackAt
+  ) {
+    executeBossAttack(now);
+  }
+
+  /* Boss cannot be caught while stamina remains */
+
+  if (boss.stamina > 0) {
+    round.distance = Math.max(
+      round.distance,
+      8
+    );
+  }
+
+  /* Battle UI */
+
+  renderBossBattle(now);
+}
+
+/* =========================================
+   BOSS BATTLE UI
+========================================= */
+
+function renderBossBattle(now = performance.now()) {
+  const boss = round.boss;
+
+  if (!boss) return;
+
+  const config = BOSS_FISH[boss.id];
+  if (!config) return;
+
+  const fish = FISH_BY_ID[boss.id];
+
+  $("bossName").textContent =
+    `${fish.icon} ${config.title}`;
+
+  $("bossPhaseLabel").textContent =
+    `PHASE ${boss.stage} / 4`;
+
+  $("bossPhaseName").textContent =
+    BOSS_PHASES[boss.stage - 1];
+
+  $("bossStaminaText").textContent =
+    `${Math.ceil(boss.stamina)}%`;
+
+  $("bossStaminaFill").style.width =
+    `${clamp(boss.stamina, 0, 100)}%`;
+
+  const status = $("bossAttackStatus");
+
+  status.classList.toggle(
+    "telegraph",
+    boss.warning
+  );
+
+  status.classList.toggle(
+    "dodged",
+    boss.dodged && now < boss.messageUntil
+  );
+
+  if (boss.warning) {
+    const remaining = Math.max(
+      0,
+      (boss.attackAt - now) / 1000
+    );
+
+    status.textContent =
+      `${boss.message} (${remaining.toFixed(1)}s)`;
+  } else if (now < boss.messageUntil) {
+    status.textContent = boss.message;
+  } else if (boss.stamina <= 0) {
+    status.textContent =
+      "✅ Boss exhausted! Tarik sampai jarak 0 m!";
+  } else {
+    status.textContent =
+      "🎣 Tarik untuk mengurangi stamina. " +
+      "Perhatikan peringatan serangan!";
+  }
+}
+
+/* =========================================
+   BOSS VICTORY RECORD
+========================================= */
+
+function recordBossVictory(catchData) {
+  const config = BOSS_FISH[catchData.id];
+
+  if (!config) return 0;
+
+  const record = save.bossRecords[catchData.id] || {
+    wins: 0,
+    largest: 0,
+    firstDefeated: null
+  };
+
+  const firstClear = record.wins === 0;
+
+  record.wins++;
+  record.largest = Math.max(
+    record.largest,
+    catchData.weight
+  );
+
+  if (firstClear) {
+    record.firstDefeated =
+      new Date().toISOString();
+  }
+
+  save.bossRecords[catchData.id] = record;
+  save.stats.bossVictories++;
+
+  // First-clear reward is paid only once.
+  if (firstClear) {
+    save.coins += config.firstReward;
+    save.stats.earned += config.firstReward;
+
+    showToast(
+      `🏆 FIRST CLEAR! +${fmt(config.firstReward)} coins`
+    );
+
+    return config.firstReward;
+  }
+
+  showToast(`🏆 ${config.title} defeated!`);
+  return 0;
+}
+
+/* =========================================
+   BOSS JOURNAL UI
+========================================= */
+
+function renderBossJournal() {
+  const list = $("bossJournalList");
+  list.replaceChildren();
+
+  const defeated = BOSS_IDS.filter(id =>
+    (save.bossRecords[id]?.wins || 0) > 0
+  ).length;
+
+  $("bossJournalSummary").textContent =
+    `${defeated} / ${BOSS_IDS.length} Boss Defeated`;
+
+  $("bossJournalFill").style.width =
+    `${defeated / BOSS_IDS.length * 100}%`;
+
+  for (const id of BOSS_IDS) {
+    const config = BOSS_FISH[id];
+    const fish = FISH_BY_ID[id];
+    const record = save.bossRecords[id];
+
+    const wins = record?.wins || 0;
+    const cleared = wins > 0;
+
+    const row = document.createElement("div");
+
+    row.className =
+      `list-item boss-journal-item ` +
+      (cleared ? "cleared" : "");
+
+    const icon = document.createElement("span");
+    icon.className = "list-item-icon";
+    icon.textContent = cleared ? "🏆" : "🔒";
+
+    const body = document.createElement("div");
+    body.className = "list-item-body";
+
+    const title = document.createElement("strong");
+    title.textContent =
+      `${fish.icon} ${config.title}`;
+
+    const details = document.createElement("small");
+
+    const locationName =
+      LOCATIONS[config.location]?.name || "Unknown";
+
+    if (cleared) {
+      const firstDate = record.firstDefeated
+        ? new Date(record.firstDefeated)
+            .toLocaleDateString("id-ID")
+        : "Tidak tercatat";
+
+      details.textContent =
+        `✅ DEFEATED ${wins}×\n` +
+        `Best Weight: ${record.largest.toFixed(2)} kg\n` +
+        `First Clear: ${firstDate}`;
+    } else {
+      details.textContent =
+        `${locationName} • Rod Lv.${config.rod}+\n` +
+        `Status: Not Defeated`;
+    }
+
+    const reward = document.createElement("p");
+    reward.className = "boss-reward";
+
+    reward.textContent = cleared
+      ? "🏆 First Clear Reward: Claimed"
+      : `🪙 First Clear Reward: ${
+          fmt(config.firstReward)
+        } coins`;
+
+    body.append(title, details, reward);
+    row.append(icon, body);
+
+    list.append(row);
+  }
+}
 
 /* =========================================
    BAIT INVENTORY & ECONOMY
@@ -2535,6 +3039,17 @@ function availableFish(zone) {
         return false;
       }
 
+      /* Boss equipment requirement */
+
+      const bossConfig = BOSS_FISH[fish.id];
+
+      if (
+        bossConfig &&
+        save.rod < bossConfig.rod
+      ) {
+        return false;
+      }
+
       if (
         fish.rarity === "Secret" &&
         !secretUnlocked()
@@ -2823,6 +3338,7 @@ function startAiming() {
   round.perfect = false;
   round.fish = null;
   round.conditions = null;
+  round.boss = null;
 
   phase = "aiming";
   renderFishing();
@@ -2942,13 +3458,21 @@ function hookFish() {
   phase = "battle";
 
   const strength = round.fish.strength;
+  const now = performance.now();
 
   round.startDistance = 70 + strength * 20;
   round.distance = round.startDistance;
   round.tension = 11;
   round.reel = false;
 
-  round.nextDash = performance.now() + rand(1300, 2600);
+  round.nextDash = now + rand(1300, 2600);
+
+  // Activate Boss Battle for special species.
+  if (BOSS_FISH[round.fish.id]) {
+    startBossBattle(round.fish, now);
+  } else {
+    round.boss = null;
+  }
 
   renderFishing();
 }
@@ -2979,11 +3503,18 @@ function endRound(kind) {
 
     registerCatch(result);
 
+    /* PHASE 7 — Boss Victory */
+
+    if (BOSS_FISH[result.id]) {
+      result.bossBonus = recordBossVictory(result);
+    }
+
     save.pendingCatch = result;
 
-    if (result.shiny) {
+    if (!BOSS_FISH[result.id] && result.shiny) {
       showToast("✨ SHINY FISH DITEMUKAN!");
-    } else if (result.size === "Giant") {
+    } else if (!BOSS_FISH[result.id] &&
+           result.size === "Giant") {
       showToast("🏆 GIANT FISH!");
     }
   }
@@ -3010,9 +3541,21 @@ function endRound(kind) {
   else {
     if (kind === "escape") {
       save.stats.escapes++;
+
+      if (round.boss) {
+        save.stats.bossEscapes++;
+
+        result = {
+          kind: "boss_escape",
+          bossId: round.boss.id
+        };
+      }
     }
 
-    result = { kind };
+    if (!result || result.kind !== "boss_escape") {
+      result = { kind };
+    }
+
     save.pendingCatch = null;
   }
 
@@ -3023,6 +3566,7 @@ function endRound(kind) {
 function finishResult() {
   result = null;
   round.fish = null;
+  round.boss = null;
   round.conditions = null;
   phase = "idle";
 
@@ -3138,6 +3682,23 @@ function renderFishing() {
     "hidden",
     phase !== "battle"
   );
+
+  const bossActive =
+    phase === "battle" && Boolean(round.boss);
+
+  $("bossWidget").classList.toggle(
+    "hidden",
+    !bossActive
+  );
+
+  $("lakeScene").classList.toggle(
+    "boss-active",
+    bossActive
+  );
+
+  if (bossActive) {
+    renderBossBattle();
+  }
 
   $("resultWidget").classList.toggle(
     "hidden",
@@ -3297,6 +3858,26 @@ function renderResult() {
     return;
   }
 
+  /* Boss escaped result */
+
+  if (result.kind === "boss_escape") {
+    const config = BOSS_FISH[result.bossId];
+
+    $("resultIcon").textContent = "💥";
+    $("resultRarity").className = "rarity legendary";
+    $("resultRarity").textContent = "BOSS ESCAPED";
+
+    $("resultTitle").textContent =
+      config?.title || "Unknown Boss";
+
+    $("resultDescription").textContent =
+      "Boss berhasil melarikan diri. " +
+      "Upgrade perlengkapan dan coba kembali!";
+
+    addResultButton("↻ Lanjut", finishResult);
+    return;
+  }
+
   if (result.kind !== "caught") {
     $("resultIcon").textContent =
       result.kind === "empty" ? "🌊" : "💨";
@@ -3357,6 +3938,20 @@ function renderResult() {
     ["Ukuran", result.size || "Normal"],
     ["Harga jual", `🪙 ${fmt(result.price)}`]
   ];
+
+  if (BOSS_FISH[result.id]) {
+    stats.push([
+      "Boss",
+      "🏆 DEFEATED"
+    ]);
+
+    if (result.bossBonus > 0) {
+      stats.push([
+        "First Clear Bonus",
+        `🪙 +${fmt(result.bossBonus)}`
+      ]);
+    }
+  }
 
   if (result.weather) {
     const weather = WEATHER_TYPES[result.weather];
@@ -3845,118 +4440,285 @@ function renderInventory() {
    ACHIEVEMENTS
 ========================================= */
 
+/* =========================================
+   PHASE 7 — PERMANENT ACHIEVEMENTS
+========================================= */
+
+function getAchievementDefinitions() {
+  const bossClears = BOSS_IDS.filter(id =>
+    (save.bossRecords[id]?.wins || 0) > 0
+  ).length;
+
+  return [
+    {
+      id: "first-catch",
+      icon: "🎣",
+      name: "First Catch",
+      description: "Tangkap ikan pertama",
+      reward: 40,
+      done: save.stats.catches >= 1
+    },
+    {
+      id: "fish-hunter",
+      icon: "🐟",
+      name: "Fish Hunter",
+      description: "Tangkap 100 ikan",
+      reward: 350,
+      done: save.stats.catches >= 100
+    },
+    {
+      id: "shiny-hunter",
+      icon: "✨",
+      name: "Shiny Hunter",
+      description: "Temukan ikan Shiny pertama",
+      reward: 500,
+      done: save.stats.shinyCatches >= 1
+    },
+    {
+      id: "giant-catch",
+      icon: "🏆",
+      name: "Giant Catch",
+      description: "Tangkap ikan kategori Giant",
+      reward: 150,
+      done: save.stats.giantCatches >= 1
+    },
+    {
+      id: "moonlight",
+      icon: "🌙",
+      name: "Moonlight",
+      description: "Temukan Moon Koi",
+      reward: 200,
+      done: Boolean(save.fishdex.moon)
+    },
+    {
+      id: "living-legend",
+      icon: "🐉",
+      name: "Living Legend",
+      description: "Temukan Ancient Carp",
+      reward: 300,
+      done: Boolean(save.fishdex.ancient)
+    },
+    {
+      id: "mythic-hunter",
+      icon: "🌌",
+      name: "Mythic Hunter",
+      description: "Temukan Astral Eel",
+      reward: 500,
+      done: Boolean(save.fishdex.astral)
+    },
+    {
+      id: "world-explorer",
+      icon: "🧭",
+      name: "World Explorer",
+      description: "Buka semua lokasi",
+      reward: 1000,
+      done: LOCATION_IDS.every(isLocationUnlocked)
+    },
+    {
+      id: "ocean-explorer",
+      icon: "🌊",
+      name: "Ocean Explorer",
+      description: "Buka Open Ocean",
+      reward: 250,
+      done: isLocationUnlocked("ocean")
+    },
+    {
+      id: "aquarium-keeper",
+      icon: "🐠",
+      name: "Aquarium Keeper",
+      description: "Simpan ikan di Aquarium",
+      reward: 100,
+      done: save.aquarium.length >= 1
+    },
+    {
+      id: "fish-lover",
+      icon: "❤️",
+      name: "Fish Lover",
+      description: "Miliki 3 ikan favorit",
+      reward: 200,
+      done: save.aquarium.filter(
+        item => item.favorite
+      ).length >= 3
+    },
+    {
+      id: "treasure-hunter",
+      icon: "💎",
+      name: "Treasure Hunter",
+      description: "Temukan 10 treasure",
+      reward: 250,
+      done: save.stats.treasuresFound >= 10
+    },
+    {
+      id: "cartographer",
+      icon: "🗺️",
+      name: "Ancient Cartographer",
+      description: "Lengkapi Ancient Map",
+      reward: 300,
+      done: save.mapFragments >= MAP_REQUIRED
+    },
+    {
+      id: "secret-explorer",
+      icon: "🌙",
+      name: "Secret Explorer",
+      description: "Buka Moonlight Lagoon",
+      reward: 400,
+      done: isLocationUnlocked("moonlight")
+    },
+    {
+      id: "boss-slayer",
+      icon: "⚔️",
+      name: "Boss Slayer",
+      description: "Kalahkan boss pertama",
+      reward: 600,
+      done: bossClears >= 1
+    },
+    {
+      id: "abyss-tamer",
+      icon: "🐉",
+      name: "Abyss Tamer",
+      description: "Kalahkan Abyss Leviathan",
+      reward: 2000,
+      done: (save.bossRecords.leviathan?.wins || 0) > 0
+    },
+    {
+      id: "four-kings",
+      icon: "👑",
+      name: "Four Kings",
+      description: "Kalahkan semua 4 boss",
+      reward: 5000,
+      done: bossClears === BOSS_IDS.length
+    },
+    {
+      id: "boss-veteran",
+      icon: "🔥",
+      name: "Boss Veteran",
+      description: "Menangkan 10 pertarungan boss",
+      reward: 1500,
+      done: save.stats.bossVictories >= 10
+    },
+    {
+      id: "professor-fish",
+      icon: "📖",
+      name: "Professor Fish",
+      description: "Lengkapi Fishdex",
+      reward: 3000,
+      done: FISH.every(
+        fish => Boolean(save.fishdex[fish.id])
+      )
+    }
+  ];
+}
+
+/* =========================================
+   ACHIEVEMENT UNLOCK
+========================================= */
+
+function syncAchievements() {
+  let newAchievements = 0;
+
+  for (const achievement of getAchievementDefinitions()) {
+    if (
+      !achievement.done ||
+      save.achievements.includes(achievement.id)
+    ) {
+      continue;
+    }
+
+    save.achievements.push(achievement.id);
+
+    save.coins += achievement.reward;
+    save.stats.earned += achievement.reward;
+
+    newAchievements++;
+  }
+
+  return newAchievements;
+}
+
 function renderAchievements() {
   const stats = [
     [fmt(save.stats.casts), "Casting"],
     [fmt(save.stats.catches), "Ikan tertangkap"],
     [fmt(save.stats.earned), "Total coin didapat"],
+
     [
       `${Number(save.stats.bestWeight).toFixed(2)} kg`,
       "Rekor berat"
     ],
-    [`${save.stats.bestLength} cm`, "Rekor panjang"],
-    [fmt(save.stats.shinyCatches), "Shiny ditemukan"]
-  ];
 
-  $("statsGrid").innerHTML = stats.map(([value, label]) => `
-    <div class="stat-box">
-      <b>${value}</b>
-      <span>${label}</span>
-    </div>
-  `).join("");
+    [
+      `${save.stats.bestLength} cm`,
+      "Rekor panjang"
+    ],
 
-  const achievements = [
     [
-      "🎣", "First Catch", "Tangkap ikan pertama",
-      save.stats.catches >= 1
+      fmt(save.stats.shinyCatches),
+      "Shiny ditemukan"
     ],
+
     [
-      "🐟", "Fish Hunter", "Tangkap 100 ikan",
-      save.stats.catches >= 100
+      fmt(save.stats.bossVictories),
+      "Boss victories"
     ],
+
     [
-      "✨", "Shiny Hunter", "Temukan shiny pertama",
-      save.stats.shinyCatches >= 1
-    ],
-    [
-      "🏆", "Giant Catch", "Tangkap ikan kategori Giant",
-      save.stats.giantCatches >= 1
-    ],
-    [
-      "🌙", "Moonlight", "Temukan Moon Koi",
-      Boolean(save.fishdex.moon)
-    ],
-    [
-      "🐉", "Living Legend", "Temukan Ancient Carp",
-      Boolean(save.fishdex.ancient)
-    ],
-    [
-      "🌌", "Mythic Hunter", "Temukan Astral Eel",
-      Boolean(save.fishdex.astral)
-    ],
-    [
-      "🧭",
-      "World Explorer",
-      "Buka seluruh lokasi memancing",
-      LOCATION_IDS.every(isLocationUnlocked)
-    ],
-    [
-      "🌊",
-      "Ocean Explorer",
-      "Buka Open Ocean",
-      isLocationUnlocked("ocean")
-    ],
-    [
-      "🐠",
-      "Aquarium Keeper",
-      "Simpan ikan pertama di aquarium",
-      save.aquarium.length >= 1
-    ],
-    [
-      "❤️",
-      "Fish Lover",
-      "Punya 3 ikan favorite di aquarium",
-      save.aquarium.filter(fish => fish.favorite).length >= 3
-    ],
-    [
-      "💎",
-      "Treasure Hunter",
-      "Temukan 10 treasure",
-      save.stats.treasuresFound >= 10
-    ],
-    [
-      "🗺️",
-      "Ancient Cartographer",
-      "Lengkapi Ancient Map",
-      save.mapFragments >= MAP_REQUIRED
-    ],
-    [
-      "🌙",
-      "Secret Explorer",
-      "Buka Moonlight Lagoon",
-      isLocationUnlocked("moonlight")
-    ],
-    [
-      "📖", "Professor Fish", "Lengkapi Fishdex",
-      FISH.every(fish => Boolean(save.fishdex[fish.id]))
+      fmt(save.stats.bossEscapes),
+      "Boss escapes"
     ]
   ];
 
-  $("achievementsList").innerHTML = achievements.map(
-    ([icon, name, description, completed]) => `
-      <div class="list-item ${
-        completed ? "achievement-done" : "unknown"
-      }">
-        <span class="list-item-icon">${icon}</span>
-        <div class="list-item-body">
-          <strong>
-            ${name} ${completed ? "✓" : "🔒"}
-          </strong>
-          <small>${description}</small>
-        </div>
+  $("statsGrid").innerHTML = stats.map(
+    ([value, label]) => `
+      <div class="stat-box">
+        <b>${value}</b>
+        <span>${label}</span>
       </div>
     `
   ).join("");
+
+  const list = $("achievementsList");
+  list.replaceChildren();
+
+  for (const achievement of getAchievementDefinitions()) {
+    const unlocked =
+      save.achievements.includes(achievement.id);
+
+    const row = document.createElement("div");
+
+    row.className =
+      `list-item ${
+        unlocked ? "achievement-done" : "unknown"
+      }`;
+
+    const icon = document.createElement("span");
+    icon.className = "list-item-icon";
+    icon.textContent = achievement.icon;
+
+    const body = document.createElement("div");
+    body.className = "list-item-body";
+
+    const title = document.createElement("strong");
+
+    title.textContent =
+      achievement.name +
+      (unlocked ? " ✓" : " 🔒");
+
+    const description = document.createElement("small");
+
+    description.textContent =
+      achievement.description;
+
+    const reward = document.createElement("small");
+
+    reward.textContent = unlocked
+      ? `🏆 Reward claimed: ${fmt(achievement.reward)} coins`
+      : `🪙 Reward: ${fmt(achievement.reward)} coins`;
+
+    body.append(title, description, reward);
+    row.append(icon, body);
+
+    list.append(row);
+  }
 }
 
 /* =========================================
@@ -4004,6 +4766,7 @@ function renderAll() {
 
   /* Progress */
 
+  renderBossJournal();
   renderAchievements();
 }
 
@@ -4012,10 +4775,22 @@ function renderAll() {
 ========================================= */
 
 function frame(now) {
+  const elapsed = now - (lastFrame || now);
+
   const dt = Math.min(
-    (now - (lastFrame || now)) / 1000,
+    elapsed / 1000,
     0.05
   );
+
+  // Pause boss attack timing if the browser
+  // suspended animation frames.
+  if (round.boss && elapsed > 250) {
+    round.boss.nextAttack += elapsed;
+
+    if (round.boss.warning) {
+      round.boss.attackAt += elapsed;
+    }
+  }
 
   lastFrame = now;
 
@@ -4081,7 +4856,11 @@ function frame(now) {
       round.tension -= tensionRecovery * dt;
     }
 
-    if (now >= round.nextDash) {
+    if (round.boss) {
+      // Boss has its own special attack patterns.
+      updateBossBattle(dt, now);
+    } else if (now >= round.nextDash) {
+      // Standard fish behavior stays unchanged.
       round.distance += 3 + strength * 6;
 
       round.tension += round.reel
@@ -4379,6 +5158,7 @@ $("newGameButton").addEventListener("click", () => {
   round.zone = "shore";
   round.bait = "worm";
   round.fish = null;
+  round.boss = null;
   round.perfect = false;
 
   round.conditions = null;
@@ -4409,6 +5189,16 @@ for (const location of Object.values(LOCATIONS)) {
   option.textContent = location.name;
 
   dexAreaFilter.append(option);
+}
+
+/* One-time migration of already earned milestones */
+
+if (hasSavedGame) {
+  const backfilled = syncAchievements();
+
+  if (backfilled > 0) {
+    writeSave();
+  }
 }
 
 renderAll();

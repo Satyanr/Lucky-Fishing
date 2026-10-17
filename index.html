@@ -15,7 +15,7 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.6.0</b></span>
+          <span>Cozy fishing adventure <b>v0.7.0</b></span>
         </div>
       </div>
       <div class="header-right">
@@ -152,6 +152,38 @@
             <div class="progress-track"><div id="distanceFill" class="distance-fill"></div></div>
             <div class="widget-head tension-label"><strong>Tension tali</strong><span id="tensionText">0%</span></div>
             <div class="progress-track"><div id="tensionFill" class="tension-fill"></div></div>
+            <!-- PHASE 7 — BOSS BATTLE -->
+
+            <div class="boss-widget hidden" id="bossWidget">
+              <div class="boss-widget-header">
+                <span class="boss-warning">⚠️ BOSS ENCOUNTER</span>
+                <strong id="bossPhaseLabel">PHASE 1 / 4</strong>
+              </div>
+
+              <h3 id="bossName">Unknown Boss</h3>
+              <p id="bossPhaseName">Approach</p>
+
+              <div class="widget-head">
+                <strong>Boss Stamina</strong>
+                <span id="bossStaminaText">100%</span>
+              </div>
+
+              <div class="boss-stamina-track">
+                <div id="bossStaminaFill"></div>
+              </div>
+
+              <div class="boss-attack-status"
+                   id="bossAttackStatus"
+                   role="status">
+                🎣 Reel untuk menguras stamina boss.
+              </div>
+
+              <p class="tiny">
+                Lepaskan Reel saat boss menyiapkan serangan.
+                Boss harus kehabisan stamina sebelum ditangkap.
+              </p>
+            </div>
+
             <button class="reel-button" id="reelButton" type="button">🎣 TAHAN UNTUK MENARIK</button>
             <p class="tiny">Tahan tombol / Space: tarik ikan. Lepaskan: turunkan tension.</p>
           </div>
@@ -450,11 +482,24 @@
           <span class="eyebrow">PROGRESS & MILESTONES</span>
           <h2>Pencapaian</h2>
           <div class="stats-grid" id="statsGrid"></div>
+
+          <h3 class="equipment-heading">🏆 Boss Journal</h3>
+          <p class="muted" id="bossJournalSummary">
+            0 / 4 Boss Defeated
+          </p>
+
+          <div class="boss-journal-progress">
+            <div id="bossJournalFill"></div>
+          </div>
+
+          <div class="item-list" id="bossJournalList"></div>
+
+          <h3 class="equipment-heading">Achievements</h3>
           <div class="item-list" id="achievementsList"></div>
         </div>
       </section>
     </main>
-    <footer>Lucky Fishing • Prototype Phase 6 • Semua progres tersimpan secara lokal di browser ini.</footer>
+    <footer>Lucky Fishing • Prototype Phase 7 • Semua progres tersimpan secara lokal di browser ini.</footer>
   </div>
 
   <div class="menu-overlay" id="menuOverlay">
@@ -465,7 +510,7 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.6.0 • Offline • Autosave</small>
+      <small>v0.7.0 • Offline • Autosave</small>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

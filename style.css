@@ -1328,3 +1328,175 @@ body{background:radial-gradient(circle at 50% -10%,#25545d,#0b2027 58%);line-hei
     will-change: auto;
   }
 }
+
+
+/* =====================================
+   LUCKY FISHING v0.7.0
+   PHASE 7 — BOSS & ENDGAME
+===================================== */
+
+.boss-widget {
+  margin: 16px 0;
+  padding: 15px;
+  border: 1px solid #ab765e;
+  border-radius: 14px;
+  background: linear-gradient(
+    140deg,
+    #452d39,
+    #243343
+  );
+}
+
+.boss-widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.boss-warning {
+  color: #ffb69d;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.3px;
+}
+
+#bossPhaseLabel {
+  font-size: 11px;
+  color: #ffe2af;
+}
+
+#bossName {
+  margin: 12px 0 4px;
+  font-size: 20px;
+  color: #fff1dd;
+}
+
+#bossPhaseName {
+  color: #d9b7c6;
+  font-size: 12px;
+  margin: 0 0 15px;
+}
+
+.boss-stamina-track {
+  height: 15px;
+  background: #14202d;
+  border: 1px solid #774f58;
+  border-radius: 20px;
+  overflow: hidden;
+  margin: 9px 0 13px;
+}
+
+#bossStaminaFill {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #db695d,
+    #ffbe79
+  );
+  transition: width .08s linear;
+}
+
+.boss-attack-status {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: #273e4b;
+  color: #dff4ef;
+}
+
+.boss-attack-status.telegraph {
+  background: #803c37;
+  color: #fff0df;
+  border: 1px solid #f6a383;
+  animation: bossAlert .45s ease-in-out infinite alternate;
+}
+
+.boss-attack-status.dodged {
+  background: #225c50;
+  color: #b8ffe1;
+}
+
+.lake-scene.boss-active .fish-shadow {
+  width: 115px;
+  height: 48px;
+  background: #113b4cb3;
+  filter: blur(4px) drop-shadow(0 0 12px #edb57c);
+}
+
+.lake-scene.boss-active .bobber {
+  box-shadow: 0 0 0 13px #ff9c7540;
+}
+
+.boss-journal-progress {
+  height: 9px;
+  border-radius: 20px;
+  background: #102b35;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+#bossJournalFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    #d6a265,
+    #f9e29e
+  );
+  transition: width .3s;
+}
+
+.boss-journal-item {
+  border-color: #665362;
+}
+
+.boss-journal-item.cleared {
+  border-color: #ad9765;
+  background: #33483e;
+}
+
+.boss-journal-item .list-item-body small {
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.boss-reward {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: #f0d39c;
+}
+
+@keyframes bossAlert {
+  from { opacity: 1; }
+  to { opacity: .65; }
+}
+
+@media (max-width: 480px) {
+  .boss-widget {
+    padding: 11px;
+  }
+
+  #bossName {
+    font-size: 17px;
+  }
+
+  .boss-widget-header {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boss-attack-status.telegraph {
+    animation: none;
+  }
+}
