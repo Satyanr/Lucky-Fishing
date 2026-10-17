@@ -1500,3 +1500,168 @@ body{background:radial-gradient(circle at 50% -10%,#25545d,#0b2027 58%);line-hei
     animation: none;
   }
 }
+
+
+/* =========================================
+   LUCKY FISHING v0.8.0
+   SETTINGS & PERFORMANCE
+========================================= */
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 14px;
+  margin: 10px 0;
+  background: #1b3c45;
+  border: 1px solid #365c65;
+  border-radius: 13px;
+}
+
+.setting-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-copy strong {
+  display: block;
+  font-size: 13px;
+  color: #e8f8ed;
+}
+
+.setting-copy small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: #a6c7ca;
+  line-height: 1.5;
+}
+
+.setting-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #8ce6bc;
+}
+
+.setting-volume {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 135px;
+}
+
+.setting-volume input {
+  width: 100%;
+  min-width: 70px;
+  accent-color: #8ce6bc;
+}
+
+#settingVolumeText {
+  min-width: 36px;
+  font-size: 12px;
+  text-align: right;
+  color: #b9efcf;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-test {
+  margin-top: 8px;
+  padding: 12px;
+  font-size: 12px;
+}
+
+.save-info {
+  padding: 15px;
+  background: #193a44;
+  border: 1px solid #395e69;
+  border-radius: 13px;
+}
+
+.save-info strong {
+  font-size: 13px;
+}
+
+.save-info p {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: #b8cfd1;
+  line-height: 1.7;
+}
+
+.save-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.save-actions button {
+  font-size: 12px;
+  padding: 13px 8px;
+}
+
+.game-pause-notice {
+  padding: 10px;
+  margin: 12px 0;
+  border-radius: 10px;
+  background: #675330;
+  color: #fff0c4;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* Low effects */
+
+body.low-effects .weather-effects {
+  animation: none !important;
+  opacity: .25;
+}
+
+body.low-effects .water::before {
+  animation: none !important;
+}
+
+body.low-effects .world-lighting {
+  animation: none !important;
+}
+
+body.low-effects .aquarium-bubbles {
+  opacity: .25;
+}
+
+/* Reduced motion */
+
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation: none !important;
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* Keep keyboard focus visible */
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #c6fbd7;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .setting-row {
+    padding: 12px;
+    gap: 9px;
+  }
+
+  .setting-volume {
+    min-width: 105px;
+  }
+
+  .save-actions {
+    grid-template-columns: 1fr;
+  }
+}

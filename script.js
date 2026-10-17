@@ -1,11 +1,65 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.7.0
-   PHASE 7 - BOSS & ENDGAME
+   LUCKY FISHING v0.8.0
+   PHASE 8 - POLISH & RELEASE PREPARATION
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
+
+/* =========================================
+   PHASE 8 — SETTINGS CONFIG
+========================================= */
+
+const BACKUP_FORMAT = "lucky-fishing-backup";
+const GAME_SAVE_VERSION = 8;
+
+function defaultSettings() {
+  return {
+    sound: true,
+    volume: 0.35,
+    reduceMotion: false,
+    lowEffects: false
+  };
+}
+
+function normalizeSettings(raw) {
+  const defaults = defaultSettings();
+
+  if (
+    !raw ||
+    typeof raw !== "object" ||
+    Array.isArray(raw)
+  ) {
+    return defaults;
+  }
+
+  return {
+    sound:
+      typeof raw.sound === "boolean"
+        ? raw.sound
+        : defaults.sound,
+
+    volume:
+      Number.isFinite(raw.volume)
+        ? Math.max(0, Math.min(1, raw.volume))
+        : defaults.volume,
+
+    reduceMotion: raw.reduceMotion === true,
+    lowEffects: raw.lowEffects === true
+  };
+}
+
+const systemMotionPreference = window.matchMedia(
+  "(prefers-reduced-motion: reduce)"
+);
+
+function shouldReduceMotion() {
+  return (
+    save.settings.reduceMotion ||
+    systemMotionPreference.matches
+  );
+}
 const SHINY_RATE = 500;
 const MAX_INVENTORY = 40;
 
@@ -1012,7 +1066,8 @@ function formatWorldTime(minute) {
 
 function freshSave() {
   return {
-    version: 7,
+    version: GAME_SAVE_VERSION,
+    settings: defaultSettings(),
     world: freshWorld(),
 
     bossRecords: {},
@@ -1065,9 +1120,11 @@ function freshSave() {
   };
 }
 
-function readSave() {
+function readSave(rawOverride = undefined) {
   try {
-    const raw = JSON.parse(localStorage.getItem(SAVE_KEY));
+    const raw = rawOverride === undefined
+      ? JSON.parse(localStorage.getItem(SAVE_KEY))
+      : rawOverride;
 
     if (
       !raw ||
@@ -1424,7 +1481,8 @@ function readSave() {
       ...defaults,
       ...raw,
 
-      version: 7,
+      version: GAME_SAVE_VERSION,
+      settings: normalizeSettings(raw.settings),
       world,
       bossRecords,
       achievements,
@@ -1502,6 +1560,165 @@ const round = {
   reel: false,
   nextDash: 0
 };
+
+/* =========================================
+   PHASE 8 — SAFE PAUSE STATE
+========================================= */
+
+let waitingRemainingMs = 0;
+let waitingStartedAt = 0;
+let fishingHiddenAt = null;
+
+/* =========================================
+   WAITING TIMER — PAUSABLE
+========================================= */
+
+function resolveWaitingBite() {
+  if (phase !== "waiting" || document.hidden || fishingHiddenAt !== null) return;
+
+  const activeBait = BAITS[round.bait] || BAITS.worm;
+  const baseEmptyChance = round.perfect ? 0.08 : 0.12;
+
+  const frenzyBonus =
+    round.conditions?.event === "frenzy" ? 0.05 : 0;
+
+  const emptyChance = clamp(
+    baseEmptyChance -
+    activeBait.emptyBonus -
+    frenzyBonus,
+    0.02,
+    0.4
+  );
+
+  if (Math.random() < emptyChance) {
+    endRound("empty");
+    return;
+  }
+
+  /* Treasure roll */
+
+  if (Math.random() < getTreasureChance()) {
+    endRound("treasure");
+    return;
+  }
+
+  /* Fish spawn */
+
+  round.fish = pickFish(
+    round.zone,
+    round.perfect
+  );
+
+  if (!round.fish) {
+    endRound("empty");
+    return;
+  }
+
+  /* Hook timing */
+
+  const baseWindow =
+    HOOK_WINDOWS[round.fish.rarity];
+
+  const hookBonus =
+    (save.hook - 1) * 190;
+
+  round.deadline =
+    performance.now() + baseWindow + hookBonus;
+
+  phase = "biting";
+
+  renderFishing();
+  playSfx("bite");
+}
+
+function scheduleWaitingBite(delayMs) {
+  clearTimeout(pendingTimer);
+
+  waitingRemainingMs = Math.max(1, delayMs);
+  waitingStartedAt = performance.now();
+
+  pendingTimer = setTimeout(() => {
+    pendingTimer = null;
+
+    if (document.hidden) {
+      waitingRemainingMs = 1;
+      return;
+    }
+
+    waitingRemainingMs = 0;
+    resolveWaitingBite();
+  }, waitingRemainingMs);
+}
+
+/* =========================================
+   PHASE 8 — PAUSE / RESUME
+========================================= */
+
+function pauseFishingForVisibility() {
+  if (fishingHiddenAt !== null) return;
+
+  fishingHiddenAt = performance.now();
+
+  if (phase === "waiting" && pendingTimer !== null) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+
+    const elapsed =
+      fishingHiddenAt - waitingStartedAt;
+
+    waitingRemainingMs = Math.max(
+      1,
+      waitingRemainingMs - elapsed
+    );
+  }
+
+  // Never keep the reel pressed while away.
+  if (phase === "battle") {
+    setReeling(false);
+  }
+
+  $("gamePauseNotice").classList.remove("hidden");
+}
+
+function resumeFishingAfterVisibility() {
+  if (fishingHiddenAt === null) return;
+
+  const now = performance.now();
+  const pauseDuration = now - fishingHiddenAt;
+
+  fishingHiddenAt = null;
+
+  if (phase === "waiting") {
+    scheduleWaitingBite(waitingRemainingMs || 1);
+  }
+
+  else if (phase === "biting") {
+    // Restore the original reaction time.
+    round.deadline += pauseDuration;
+  }
+
+  else if (phase === "battle") {
+    round.nextDash += pauseDuration;
+
+    if (round.boss) {
+      round.boss.nextAttack += pauseDuration;
+
+      if (round.boss.warning) {
+        round.boss.attackAt += pauseDuration;
+      }
+
+      if (round.boss.messageUntil) {
+        round.boss.messageUntil += pauseDuration;
+      }
+    }
+  }
+
+  // Reset frame timestamps so no large delta is applied.
+  lastFrame = now;
+  worldLastTick = now;
+
+  $("gamePauseNotice").classList.add("hidden");
+}
 
 /* =========================================
    PHASE 7 — BOSS BATTLE ENGINE
@@ -1646,6 +1863,7 @@ function updateBossBattle(dt, now) {
     now >= boss.nextAttack
   ) {
     boss.warning = true;
+    playSfx("bossWarning");
 
     const warningDuration =
       boss.stage >= 3 ? 750 : 1100;
@@ -1912,6 +2130,7 @@ function buyBait(id) {
   save.coins -= bait.price;
   changeBaitCount(id, bait.bundle);
 
+  playSfx("coin");
   writeSave();
   renderAll();
 
@@ -1934,6 +2153,7 @@ function upgradeGear(type, costs) {
   save.coins -= cost;
   save[type]++;
 
+  playSfx("coin");
   writeSave();
   renderAll();
 
@@ -2002,6 +2222,7 @@ function upgradeAquarium() {
   save.coins -= cost;
   save.aquariumLevel++;
 
+  playSfx("coin");
   writeSave();
   renderAll();
 
@@ -2068,6 +2289,18 @@ function renderAquarium() {
   const layer = $("aquariumFishLayer");
   const list = $("aquariumFishList");
 
+  const previousFishMotion = new Map(
+    aquariumSprites.map(sprite => [
+      sprite.id,
+      {
+        x: sprite.x,
+        y: sprite.y,
+        vx: sprite.vx,
+        wave: sprite.wave
+      }
+    ])
+  );
+
   layer.replaceChildren();
   list.replaceChildren();
 
@@ -2118,16 +2351,23 @@ function renderAquarium() {
 
     layer.append(sprite);
 
+    const previous = previousFishMotion.get(
+      item.aquariumId
+    );
+
     aquariumSprites.push({
+      id: item.aquariumId,
       node: sprite,
 
-      x: rand(12, 88),
-      y: rand(18, 76),
+      x: previous?.x ?? rand(12, 88),
+      y: previous?.y ?? rand(18, 76),
 
-      vx: rand(5, 13) *
-        (Math.random() < 0.5 ? -1 : 1),
+      vx: previous?.vx ?? (
+        rand(5, 13) *
+        (Math.random() < 0.5 ? -1 : 1)
+      ),
 
-      wave: rand(0, Math.PI * 2)
+      wave: previous?.wave ?? rand(0, Math.PI * 2)
     });
 
     /* Collection list item */
@@ -2213,13 +2453,14 @@ function animateAquarium(dt, now) {
     return;
   }
 
-  const reducedMotion = window.matchMedia(
-    "(prefers-reduced-motion: reduce)"
-  ).matches;
+  const reducedMotion = shouldReduceMotion();
 
   aquariumSprites.forEach(sprite => {
     if (!reducedMotion) {
-      sprite.x += sprite.vx * dt;
+      const speedMultiplier =
+        save.settings.lowEffects ? 0.6 : 1;
+
+      sprite.x += sprite.vx * dt * speedMultiplier;
 
       if (sprite.x > 91) {
         sprite.x = 91;
@@ -2513,6 +2754,352 @@ function setTab(tab) {
   });
 
   renderAll();
+}
+
+/* =========================================
+   PHASE 8 — SETTINGS UI
+========================================= */
+
+function applySettings() {
+  const settings = save.settings;
+
+  document.body.classList.toggle(
+    "reduce-motion",
+    shouldReduceMotion()
+  );
+
+  document.body.classList.toggle(
+    "low-effects",
+    settings.lowEffects
+  );
+}
+
+function renderSettings() {
+  const settings = save.settings;
+
+  $("settingSound").checked = settings.sound;
+
+  $("settingVolume").value = Math.round(
+    settings.volume * 100
+  );
+
+  $("settingVolumeText").textContent =
+    `${Math.round(settings.volume * 100)}%`;
+
+  $("settingMotion").checked =
+    settings.reduceMotion;
+
+  $("settingEffects").checked =
+    settings.lowEffects;
+
+  $("testSoundButton").disabled =
+    !settings.sound || settings.volume <= 0;
+
+  applySettings();
+}
+
+function updateSetting(key, value) {
+  if (!Object.hasOwn(defaultSettings(), key)) {
+    return;
+  }
+
+  save.settings[key] = value;
+
+  applySettings();
+  writeSave();
+  renderSettings();
+}
+
+/* =========================================
+   PHASE 8 — SOUND ENGINE
+========================================= */
+
+let audioContext = null;
+
+const SOUND_PATTERNS = {
+  cast: [
+    [520, 0.11, "sine"],
+    [340, 0.16, "sine"]
+  ],
+
+  bite: [
+    [840, 0.09, "square"],
+    [1050, 0.10, "square"]
+  ],
+
+  hook: [
+    [420, 0.11, "triangle"],
+    [670, 0.14, "triangle"]
+  ],
+
+  catch: [
+    [520, 0.12, "sine"],
+    [660, 0.12, "sine"],
+    [880, 0.19, "sine"]
+  ],
+
+  escape: [
+    [390, 0.14, "triangle"],
+    [230, 0.22, "triangle"]
+  ],
+
+  treasure: [
+    [620, 0.12, "sine"],
+    [860, 0.12, "sine"],
+    [1160, 0.20, "sine"]
+  ],
+
+  coin: [
+    [900, 0.08, "sine"],
+    [1190, 0.13, "sine"]
+  ],
+
+  boss: [
+    [180, 0.18, "sawtooth"],
+    [145, 0.20, "sawtooth"],
+    [110, 0.26, "sawtooth"]
+  ],
+
+  bossWarning: [
+    [420, 0.13, "square"],
+    [420, 0.13, "square"]
+  ],
+
+  bossWin: [
+    [440, 0.14, "triangle"],
+    [550, 0.14, "triangle"],
+    [660, 0.14, "triangle"],
+    [880, 0.30, "triangle"]
+  ]
+};
+
+function playSfx(name) {
+  const settings = save.settings;
+
+  if (!settings.sound || settings.volume <= 0) {
+    return;
+  }
+
+  const pattern = SOUND_PATTERNS[name];
+
+  if (!pattern) return;
+
+  const Context =
+    window.AudioContext || window.webkitAudioContext;
+
+  if (!Context) return;
+
+  try {
+    if (!audioContext) {
+      audioContext = new Context();
+    }
+
+    if (audioContext.state === "suspended") {
+      audioContext.resume().catch(() => {});
+    }
+
+    let start = audioContext.currentTime + 0.01;
+
+    for (const [frequency, duration, type] of pattern) {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      const peak = Math.max(
+        0.0001,
+        Math.min(0.12, settings.volume * 0.1)
+      );
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(
+        frequency,
+        start
+      );
+
+      gain.gain.setValueAtTime(0.0001, start);
+
+      gain.gain.exponentialRampToValueAtTime(
+        peak,
+        start + 0.015
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        start + duration
+      );
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.01);
+
+      start += duration * 0.85;
+    }
+  } catch (error) {
+    // Audio is optional and must never stop gameplay.
+    console.warn("Sound unavailable:", error);
+  }
+}
+
+/* =========================================
+   PHASE 8 — SAVE EXPORT
+========================================= */
+
+function exportGameSave() {
+  if (!hasSavedGame) {
+    showToast("Belum ada save untuk diekspor.");
+    return;
+  }
+
+  writeSave();
+
+  const backup = {
+    format: BACKUP_FORMAT,
+    version: GAME_SAVE_VERSION,
+    exportedAt: new Date().toISOString(),
+    save: save
+  };
+
+  const json = JSON.stringify(
+    backup,
+    null,
+    2
+  );
+
+  const blob = new Blob(
+    [json],
+    { type: "application/json;charset=utf-8" }
+  );
+
+  const url = URL.createObjectURL(blob);
+
+  const date = new Date().toISOString().slice(0, 10);
+
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `Lucky-Fishing-Save-${date}.json`;
+
+  document.body.append(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
+
+  showToast("💾 Backup save siap disimpan!");
+}
+
+/* =========================================
+   PHASE 8 — SAVE IMPORT
+========================================= */
+
+async function importGameSave(file) {
+  if (!file) return;
+
+  // Protect against accidentally importing huge files.
+  if (file.size > 2 * 1024 * 1024) {
+    showToast("File backup terlalu besar (maks. 2 MB).");
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+
+    if (
+      !backup ||
+      backup.format !== BACKUP_FORMAT ||
+      !backup.save ||
+      typeof backup.save !== "object" ||
+      Array.isArray(backup.save)
+    ) {
+      throw new Error("Format backup tidak dikenali.");
+    }
+
+    const sourceVersion = backup.save.version;
+
+    if (
+      !Number.isInteger(sourceVersion) ||
+      sourceVersion < 2 ||
+      sourceVersion > GAME_SAVE_VERSION
+    ) {
+      throw new Error("Versi save tidak didukung.");
+    }
+
+    // Reuse existing validation and migrations.
+    const restored = readSave(backup.save);
+
+    if (!restored) {
+      throw new Error("Isi backup tidak valid.");
+    }
+
+    if (
+      restored.inventory.length > MAX_INVENTORY ||
+      restored.aquarium.length > AQUARIUM_CAPACITY[restored.aquariumLevel] ||
+      restored.treasureInventory.length > MAX_TREASURE_STORAGE
+    ) {
+      throw new Error("Kapasitas koleksi dalam backup tidak valid.");
+    }
+
+    const confirmed = window.confirm(
+      "Restore backup Lucky Fishing?\n\n" +
+      "Seluruh progres saat ini akan diganti.\n" +
+      "Pastikan kamu sudah membuat backup sebelumnya."
+    );
+
+    if (!confirmed) return;
+
+    // Save validated data BEFORE changing game state.
+    // If storage fails, keep the current game untouched.
+    localStorage.setItem(
+      SAVE_KEY,
+      JSON.stringify(restored)
+    );
+
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+    waitingRemainingMs = 0;
+    waitingStartedAt = 0;
+    fishingHiddenAt = null;
+    $("gamePauseNotice").classList.add("hidden");
+    aquariumSprites = [];
+
+    save = restored;
+    hasSavedGame = true;
+
+    result = save.pendingCatch || null;
+    phase = result ? "result" : "idle";
+
+    round.fish = null;
+    round.boss = null;
+    round.conditions = null;
+    round.zone = "shore";
+    round.power = 0;
+    round.perfect = false;
+    round.reel = false;
+
+    worldLastTick = performance.now();
+    lastFrame = performance.now();
+    worldSaveAccumulator = 0;
+
+    $("menuOverlay").classList.add("hidden");
+    $("continueButton").disabled = false;
+
+    // Persist any achievement migration results.
+    writeSave();
+
+    setTab("fishing");
+
+    showToast("✅ Save berhasil dipulihkan!");
+  } catch (error) {
+    console.error("Import failed:", error);
+
+    showToast(
+      `Gagal restore: ${error.message}`
+    );
+  }
 }
 
 /* =========================================
@@ -3381,6 +3968,7 @@ function castLine() {
   };
 
   phase = "waiting";
+  playSfx("cast");
 
   writeSave();
   renderAll();
@@ -3389,58 +3977,14 @@ function castLine() {
     showToast("✨ PERFECT CAST! Bonus peluang rarity aktif.");
   }
 
-  clearTimeout(pendingTimer);
+  const activeBait = BAITS[round.bait];
 
-  pendingTimer = setTimeout(() => {
-    if (phase !== "waiting") return;
+  const waitDuration =
+    rand(1600, 3900) *
+    activeBait.waitMultiplier *
+    (round.conditions?.event === "frenzy" ? 0.6 : 1);
 
-    const activeBait = BAITS[round.bait];
-
-    const baseEmptyChance = round.perfect ? 0.08 : 0.12;
-
-    const frenzyBonus =
-      round.conditions?.event === "frenzy" ? 0.05 : 0;
-
-    const emptyChance = clamp(
-      baseEmptyChance -
-      activeBait.emptyBonus -
-      frenzyBonus,
-      0.02,
-      0.4
-    );
-
-    if (Math.random() < emptyChance) {
-      endRound("empty");
-      return;
-    }
-
-    /* PHASE 6 — Treasure roll */
-
-    if (Math.random() < getTreasureChance()) {
-      endRound("treasure");
-      return;
-    }
-
-    round.fish = pickFish(round.zone, round.perfect);
-
-    if (!round.fish) {
-      endRound("empty");
-      return;
-    }
-
-    const baseWindow = HOOK_WINDOWS[round.fish.rarity];
-
-    const hookBonus = (save.hook - 1) * 190;
-
-    round.deadline =
-      performance.now() + baseWindow + hookBonus;
-
-    phase = "biting";
-
-    renderFishing();
-  }, rand(1600, 3900) *
-   BAITS[round.bait].waitMultiplier *
-   (round.conditions?.event === "frenzy" ? 0.6 : 1));
+  scheduleWaitingBite(waitDuration);
 }
 
 /* =========================================
@@ -3474,6 +4018,7 @@ function hookFish() {
     round.boss = null;
   }
 
+  playSfx(round.boss ? "boss" : "hook");
   renderFishing();
 }
 
@@ -3539,6 +4084,9 @@ function endRound(kind) {
   }
 
   else {
+    // Always initialize the result for this round.
+    result = { kind };
+
     if (kind === "escape") {
       save.stats.escapes++;
 
@@ -3552,11 +4100,19 @@ function endRound(kind) {
       }
     }
 
-    if (!result || result.kind !== "boss_escape") {
-      result = { kind };
-    }
-
     save.pendingCatch = null;
+  }
+
+  /* Phase 8 — Result SFX */
+
+  if (kind === "caught") {
+    playSfx(
+      round.boss ? "bossWin" : "catch"
+    );
+  } else if (kind === "treasure") {
+    playSfx("treasure");
+  } else if (kind === "escape") {
+    playSfx("escape");
   }
 
   writeSave();
@@ -4768,6 +5324,7 @@ function renderAll() {
 
   renderBossJournal();
   renderAchievements();
+  renderSettings();
 }
 
 /* =========================================
@@ -4782,17 +5339,20 @@ function frame(now) {
     0.05
   );
 
-  // Pause boss attack timing if the browser
-  // suspended animation frames.
-  if (round.boss && elapsed > 250) {
-    round.boss.nextAttack += elapsed;
 
-    if (round.boss.warning) {
-      round.boss.attackAt += elapsed;
-    }
-  }
 
   lastFrame = now;
+
+  /* Pause gameplay on hidden tab or welcome menu */
+
+  if (
+    document.hidden ||
+    fishingHiddenAt !== null ||
+    !$("menuOverlay").classList.contains("hidden")
+  ) {
+    requestAnimationFrame(frame);
+    return;
+  }
 
   if (phase === "aiming") {
     const reach = ROD_REACH[save.rod];
@@ -5117,6 +5677,68 @@ $("aquariumFishList").addEventListener(
 );
 
 /* =========================================
+   PHASE 8 — SETTINGS EVENTS
+========================================= */
+
+$("settingSound").addEventListener("change", event => {
+  updateSetting("sound", event.target.checked);
+});
+
+$("settingVolume").addEventListener("input", event => {
+  const volume = clamp(
+    Number(event.target.value) / 100,
+    0,
+    1
+  );
+
+  updateSetting("volume", volume);
+});
+
+$("settingMotion").addEventListener("change", event => {
+  updateSetting("reduceMotion", event.target.checked);
+});
+
+$("settingEffects").addEventListener("change", event => {
+  updateSetting("lowEffects", event.target.checked);
+});
+
+$("testSoundButton").addEventListener("click", () => {
+  playSfx("catch");
+});
+
+/* Backup */
+
+$("exportSaveButton").addEventListener(
+  "click",
+  exportGameSave
+);
+
+$("importSaveButton").addEventListener("click", () => {
+  $("importSaveFile").click();
+});
+
+$("importSaveFile").addEventListener(
+  "change",
+  async event => {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      await importGameSave(file);
+    }
+
+    // Allow selecting the same backup again.
+    event.target.value = "";
+  }
+);
+
+/* System accessibility preferences */
+
+systemMotionPreference.addEventListener?.(
+  "change",
+  applySettings
+);
+
+/* =========================================
    MAIN MENU
 ========================================= */
 
@@ -5149,7 +5771,12 @@ $("newGameButton").addEventListener("click", () => {
 
   clearTimeout(pendingTimer);
 
+  const previousSettings = {
+    ...save.settings
+  };
+
   save = freshSave();
+  save.settings = previousSettings;
   hasSavedGame = true;
 
   result = null;
@@ -5162,6 +5789,13 @@ $("newGameButton").addEventListener("click", () => {
   round.perfect = false;
 
   round.conditions = null;
+
+  pendingTimer = null;
+  waitingRemainingMs = 0;
+  waitingStartedAt = 0;
+  fishingHiddenAt = null;
+  $("gamePauseNotice").classList.add("hidden");
+  aquariumSprites = [];
 
   worldLastTick = performance.now();
   worldSaveAccumulator = 0;
@@ -5210,6 +5844,12 @@ setInterval(tickWorld, 1000);
 
 /* Prevent background-tab time jumps */
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pauseFishingForVisibility();
+  } else {
+    resumeFishingAfterVisibility();
+  }
+
   worldLastTick = performance.now();
 
   if (document.hidden && hasSavedGame) {

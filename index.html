@@ -15,7 +15,7 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.7.0</b></span>
+          <span>Cozy fishing adventure <b>v0.8.0</b></span>
         </div>
       </div>
       <div class="header-right">
@@ -48,6 +48,9 @@
         💎 Treasure
       </button>
       <button class="tab" data-tab="achievements" type="button">🏆 Pencapaian</button>
+      <button class="tab" data-tab="settings" type="button">
+        ⚙️ Settings
+      </button>
     </nav>
 
     <main class="game-grid">
@@ -136,6 +139,12 @@
           <span class="eyebrow">FISHING CONTROL</span>
           <h2 id="phaseTitle">Siap memancing?</h2>
           <p class="muted" id="phaseHint">Tekan Mulai Casting untuk menggerakkan meter lemparan.</p>
+
+          <div class="game-pause-notice hidden"
+               id="gamePauseNotice"
+               role="status">
+            ⏸️ Game paused — kembali ke tab untuk melanjutkan.
+          </div>
 
           <div class="cast-widget hidden" id="castWidget">
             <div class="widget-head"><strong>Cast Power</strong><span id="powerText">0%</span></div>
@@ -497,9 +506,110 @@
           <h3 class="equipment-heading">Achievements</h3>
           <div class="item-list" id="achievementsList"></div>
         </div>
+        <!-- PHASE 8 — SETTINGS -->
+
+        <div class="panel hidden" data-panel="settings">
+          <span class="eyebrow">GAME PREFERENCES</span>
+          <h2>Settings</h2>
+
+          <p class="muted">
+            Sesuaikan pengalaman bermain dan kelola data
+            progres yang tersimpan di browser.
+          </p>
+
+          <h3 class="equipment-heading">Audio</h3>
+
+          <label class="setting-row" for="settingSound">
+            <span class="setting-copy">
+              <strong>🔊 Sound Effects</strong>
+              <small>
+                Mainkan efek suara saat melakukan aksi.
+              </small>
+            </span>
+            <input type="checkbox" id="settingSound" checked>
+          </label>
+
+          <div class="setting-row">
+            <label class="setting-copy" for="settingVolume">
+              <strong>Volume</strong>
+              <small>Atur volume efek suara.</small>
+            </label>
+
+            <div class="setting-volume">
+              <input type="range" id="settingVolume"
+                     min="0" max="100" step="5" value="35">
+              <span id="settingVolumeText">35%</span>
+            </div>
+          </div>
+
+          <button class="secondary-button settings-test"
+                  id="testSoundButton" type="button">
+            ▶ Test Sound
+          </button>
+
+          <h3 class="equipment-heading">Graphics & Accessibility</h3>
+
+          <label class="setting-row" for="settingMotion">
+            <span class="setting-copy">
+              <strong>Reduce Motion</strong>
+              <small>
+                Kurangi gerakan dekoratif dan animasi.
+              </small>
+            </span>
+            <input type="checkbox" id="settingMotion">
+          </label>
+
+          <label class="setting-row" for="settingEffects">
+            <span class="setting-copy">
+              <strong>Low Effects Mode</strong>
+              <small>
+                Kurangi animasi cuaca dan efek visual.
+              </small>
+            </span>
+            <input type="checkbox" id="settingEffects">
+          </label>
+
+          <h3 class="equipment-heading">Save Management</h3>
+
+          <div class="save-info">
+            <strong>💾 Local Save</strong>
+            <p>
+              Progres disimpan di browser ini.
+              Buat backup sebelum membersihkan data browser,
+              berpindah perangkat, atau mencoba versi baru.
+            </p>
+          </div>
+
+          <div class="save-actions">
+            <button class="secondary-button"
+                    id="exportSaveButton" type="button">
+              📤 Export Save
+            </button>
+
+            <button class="secondary-button"
+                    id="importSaveButton" type="button">
+              📥 Import Save
+            </button>
+          </div>
+
+          <input id="importSaveFile"
+                 type="file"
+                 accept=".json,application/json"
+                 class="hidden">
+
+          <p class="tiny">
+            Import mengganti progres yang sedang digunakan.
+            Export terlebih dahulu sebelum melakukan restore.
+            Progres hanya tersimpan secara lokal,
+            bukan tersinkronisasi melalui akun.
+          </p>
+        </div>
       </section>
     </main>
-    <footer>Lucky Fishing • Prototype Phase 7 • Semua progres tersimpan secara lokal di browser ini.</footer>
+    <footer>
+      Lucky Fishing • v0.8.0 Release Candidate •
+      Offline • Local Autosave
+    </footer>
   </div>
 
   <div class="menu-overlay" id="menuOverlay">
@@ -510,7 +620,7 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.7.0 • Offline • Autosave</small>
+      <small>v0.8.0 • Offline • Autosave</small>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
