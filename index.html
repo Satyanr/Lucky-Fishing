@@ -15,10 +15,11 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.8.0</b></span>
+          <span>Cozy fishing adventure <b>v0.8.1</b></span>
         </div>
       </div>
       <div class="header-right">
+        <button type="button" id="developerBadge" class="small-button hidden" title="Buka Developer Mode">DEV</button>
         <div class="resource">🪙 <strong id="coinsText">100</strong></div>
         <div class="resource">
   <span id="baitIcon">🪱</span>
@@ -78,23 +79,110 @@
           <div class="world-lighting" id="worldLighting"></div>
           <div class="weather-effects" id="weatherEffects"></div>
           <div class="world-stars" id="worldStars"></div>
-          <div class="sun"></div>
-          <div class="mountain mountain-far"></div>
-          <div class="mountain mountain-near"></div>
-          <div class="shoreline"></div>
-          <div class="water">
-            <div class="water-stripe stripe-one"></div>
-            <div class="water-stripe stripe-two"></div>
-            <div class="water-stripe stripe-three"></div>
-          </div>
-          <div class="pier"></div>
-          <div class="fisher">🧑‍🌾<div class="fishing-rod"></div></div>
+          <svg class="fishing-landscape" viewBox="0 0 800 480" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="lakeDepth" x2="0" y2="1"><stop stop-color="var(--water-top)"/><stop offset="1" stop-color="var(--water-bottom)"/></linearGradient>
+              <linearGradient id="hillShade" x2="0" y2="1"><stop stop-color="var(--hill-light)"/><stop offset="1" stop-color="var(--hill-dark)"/></linearGradient>
+              <g id="pine"><path d="M0 0 28 48H17L38 80H10v18H-10V80H-38l21-32H-28Z" fill="currentColor"/><path d="M0 12 0 80H-30l19-28H-20Z" fill="#ffffff0d"/></g>
+              <g id="littleFish"><path d="M-24 0Q0-20 25 0Q0 20-24 0L-39-13v26Z" fill="currentColor"/><path d="m-5-9 8-8 6 10M-5 9l8 7 5-9" fill="currentColor"/><circle cx="15" cy="-2" r="2.5" fill="#123948"/><path d="M-17 0H3" stroke="#ffffff65" stroke-width="2"/></g>
+            </defs>
+            <circle class="painted-sun" cx="635" cy="94" r="34" fill="#ffe8ad"/>
+            <circle cx="635" cy="94" r="51" fill="#ffe8ad" opacity=".1"/>
+            <g class="cloud-drift" fill="#f5f8dd" opacity=".6"><path d="M72 100q0-15 22-15 5-25 31-17 24 0 23 20 27-5 30 12Z"/><path d="M450 64q10-18 27-10 15-28 36-10 22-3 23 20Z"/></g>
+            <path class="distant-hills" d="M0 240V180L90 99l66 78 99-114 111 127 70-67 80 62 111-93 173 121v70Z" fill="var(--hill-light)" opacity=".55"/>
+            <path class="distant-hills" d="m0 240 0-30 116-63 88 69 133-94 136 96 123-75 204 77v60Z" fill="url(#hillShade)"/>
+            <path class="woodland-bank" d="M0 238Q120 185 252 231T520 219T800 235V287H0Z" fill="var(--bank)"/>
+            <g class="forest-trees" style="color:var(--tree)"><use href="#pine" transform="translate(36 142) scale(.9)"/><use href="#pine" transform="translate(94 166) scale(.7)"/><use href="#pine" transform="translate(720 130)"/><use href="#pine" transform="translate(779 165) scale(.8)"/><use href="#pine" transform="translate(662 172) scale(.6)"/></g>
+            <g class="village-cottage"><path d="M136 200h65v42h-65Z" fill="#f6d5a0"/><path d="m125 202 43-35 45 35Z" fill="#b9654b"/><path d="M180 174v-15h10v24" fill="#8e5043"/><path d="M148 215h14v13h-14Zm29-4h14v31h-14Z" fill="#506f69"/><path d="M143 204h54" stroke="#d6a46e" stroke-width="3"/></g>
+            <g class="crystal-rocks" fill="#a7dff5" stroke="#e0f6ff" stroke-width="2"><path d="m653 238-14-53 19-31 21 56-12 28Z"/><path d="m680 241-9-38 17-22 15 47Z"/><path d="m118 245-14-36 12-23 19 45Z"/></g>
+            <g class="palm-trees" stroke="#9b7851" stroke-width="9" fill="none"><path d="M712 252q-23-70-7-104"/><path d="M705 148q-46-30-63 11m63-11q31-37 65-3m-65 3q-7-37-37-41m37 41q42-5 53 33" stroke="#458b66" stroke-width="12" stroke-linecap="round"/></g>
+            <path d="M0 259Q180 246 340 260T800 255V480H0Z" fill="url(#lakeDepth)"/>
+            <g class="water-glints" stroke="#d5ffe9" stroke-linecap="round" opacity=".3"><path d="M350 285h80m111-13h47m61 31h83M80 310h55m291 19h72m-273 23h100m238 36h100M60 421h90m235 20h108m172-4h69"/><path d="M602 281h53m-40 13h59m-77 21h78" stroke="#ffe8ad" stroke-width="4"/></g>
+            <g class="ambient-fish fish-one" style="color:#91d5c3"><use href="#littleFish" transform="translate(460 372) scale(.75)"/></g>
+            <g class="ambient-fish fish-two" style="color:#f4c879"><use href="#littleFish" transform="translate(660 420) scale(.55)"/></g>
+            <g class="ambient-fish fish-three" style="color:#7bc7d3"><use href="#littleFish" transform="translate(315 435) scale(.45)"/></g>
+            <g class="lily-pads" fill="#509b79"><ellipse cx="720" cy="342" rx="24" ry="7"/><ellipse cx="753" cy="360" rx="18" ry="5"/><path d="m716 336 6-9 6 9-6 4Z" fill="#ffd8dc"/></g>
+            <path class="foreground-bank" d="M0 367q75-20 122 34t102 79H0Z" fill="#214f4b"/>
+            <g class="fishing-platform platform-village dock-art"><path d="M37 324v91m180-66v62" stroke="#614e41" stroke-width="12"/><path d="m0 298 235 20v31L0 328Z" fill="#695443"/><path d="m0 282 235 24v17L0 304Z" fill="#c39b69"/><path d="m26 285-1 21m35-17-1 21m35-17-1 21m35-17-1 21m35-17-1 21m35-17-1 21m35-17-1 21" stroke="#84674b" stroke-width="3"/><path d="m0 282 235 24" stroke="#edd0a0" stroke-width="3"/></g>
+            <g class="fishing-platform platform-forest">
+              <path d="M0 295 225 294 238 326 0 345Z" fill="#715442"/>
+              <ellipse cx="225" cy="310" rx="18" ry="18" fill="#c09b68" stroke="#674d3d" stroke-width="5"/>
+              <ellipse cx="225" cy="310" rx="9" ry="10" fill="none" stroke="#937048" stroke-width="2"/>
+              <path d="m0 303 191 3m-167 16 161-9" stroke="#473e36" stroke-width="4"/>
+              <path d="M0 292q42-17 73 0t66-2 65 5l-10 10q-37-7-61-1t-62-1-71 5Z" fill="#6f9a55"/>
+              <path d="M55 288q-5-20-18-22m18 22q5-22 20-26" fill="none" stroke="#77aa65" stroke-width="5"/>
+              <path d="M126 279h43v13h-43Z" fill="#947049"/>
+              <path d="M132 290v22m30-22v22" stroke="#795b40" stroke-width="5"/>
+            </g>
+            <g class="fishing-platform platform-crystal">
+              <path d="M0 300 67 269 161 281 221 308 197 359 69 373 0 348Z" fill="#657d9c"/>
+              <path d="m0 300 67-31 94 12 60 27-86 15-67-17Z" fill="#b1c7d2"/>
+              <path d="m68 306 1 67 66-50 62 36 24-51-86 15" fill="#7d97b4"/>
+              <path d="m31 285-13-58 16-30 22 69Zm159 22-12-43 19-23 12 51Z" fill="#9ae4ed" stroke="#d9ffff" stroke-width="2"/>
+              <path d="M130 277h38v15h-38Z" fill="#c8e3e7"/><path d="M132 292v15m34-15v15" stroke="#8caebf" stroke-width="6"/>
+            </g>
+            <g class="fishing-platform platform-tropical">
+              <path d="M0 281q108-27 201 27l36 52q-77 23-150 65L0 414Z" fill="#e7cf9b"/>
+              <path d="M0 314q86-21 168 13t50 45" fill="none" stroke="#f7e9bd" stroke-width="5"/>
+              <path d="M121 285h55v12h-55Z" fill="#d99d6a"/>
+              <path d="m127 297-8 25m51-25 8 25" stroke="#916748" stroke-width="5"/>
+              <path d="M58 296V190" stroke="#bf8e63" stroke-width="5"/>
+              <path d="M0 197q58-86 120 0Z" fill="#e98870"/><path d="M58 154q-18 15-20 43h42q-2-28-22-43" fill="#ffe1a6"/>
+              <path d="m70 371 8-9 10 6-6 8Z" fill="#fff0d0"/><path d="m194 363 8-9 8 10-8 6Z" fill="#e5ab9d"/>
+            </g>
+            <g class="fishing-platform platform-ocean">
+              <ellipse cx="130" cy="372" rx="149" ry="12" fill="#102e5144"/>
+              <path d="m0 298 85 19 207-17-47 59q-99 31-212-1Z" fill="#bd7053"/>
+              <path d="m0 298 85 19 207-17-14 15-197 18-74-17Z" fill="#f1d4a0"/>
+              <path d="m23 332 61 12 172-17" fill="none" stroke="#e5ad7b" stroke-width="3"/>
+              <path d="M116 283h62v14h-62Z" fill="#956f50"/><path d="M122 297v22m49-22v19" stroke="#624d43" stroke-width="5"/>
+              <path d="M38 288v-79m0 7 47 58" stroke="#d9c392" stroke-width="4"/>
+              <path d="m43 217 1 53 36 3Z" fill="#eee0b3"/>
+              <ellipse cx="246" cy="330" rx="9" ry="14" fill="#384b55"/>
+            </g>
+            <g class="fishing-platform platform-deep">
+              <path d="m0 275 230 17 55 43-27 36-258-7Z" fill="#344e69"/>
+              <path d="m0 275 230 17 29 23L0 306Z" fill="#7895aa"/>
+              <path d="m0 317 273 16m-235-59v-48m0 9h53v51" fill="none" stroke="#b6cbce" stroke-width="5"/>
+              <path d="M112 277h63v16h-63Z" fill="#b4c8ce"/><path d="M126 293v18m39-18v18" stroke="#4a637e" stroke-width="6"/>
+              <path d="M0 261h57v36H0Z" fill="#254554" stroke="#6e9aa6" stroke-width="3"/>
+              <path d="m7 282 8-8 8 11 9-18 12 14" fill="none" stroke="#8eebba" stroke-width="2"/>
+              <g fill="#b5dddf"><circle cx="40" cy="345" r="5"/><circle cx="102" cy="350" r="5"/><circle cx="165" cy="353" r="5"/><circle cx="227" cy="354" r="5"/></g>
+              <path d="M263 318v-34" stroke="#e6c780" stroke-width="4"/><circle cx="263" cy="281" r="7" fill="#f6d48c"/>
+            </g>
+            <g class="fishing-platform platform-moonlight">
+              <path d="M0 289 183 285 235 314 219 341 0 350Z" fill="#6e7194"/>
+              <path d="M0 289 183 285 235 314 0 324Z" fill="#b4b3cf"/>
+              <path d="m26 290 32 31m39-32 31 28m46-30 22 29" stroke="#8086a6" stroke-width="3"/>
+              <path d="M122 278h50v14h-50Z" fill="#d1cee4"/><path d="M130 292v23m35-23v21" stroke="#8d92b2" stroke-width="6"/>
+              <path d="M34 289V152m0 9h48v21" fill="none" stroke="#9a95b8" stroke-width="5"/>
+              <path d="M70 182h25v32H70Z" fill="#f6dda2" stroke="#a79bc0" stroke-width="3"/>
+              <path d="M81 187q-10 9 2 17-2-9 6-12" fill="#c49fab"/>
+              <path d="M204 294q-12-18-4-32 1 17 14 20Z" fill="#a8e4dc"/>
+            </g>
+            <g class="angler" transform="translate(150 224)">
+              <ellipse cx="11" cy="81" rx="41" ry="7" fill="#203b4140"/>
+              <path d="M-10 39v24l25 5 10 16m-18-43 18 17 10 22" fill="none" stroke="#344f63" stroke-width="14" stroke-linecap="round"/>
+              <path d="m22 82 13 2m-4-5 12 1" stroke="#253542" stroke-width="9" stroke-linecap="round"/>
+              <path d="M-16 7q14-8 28 3l7 36-34 3Z" fill="#e69866"/>
+              <path d="M-16 13-5 10v32h-14Z" fill="#bd7956"/>
+              <path d="M-12 9-5 15 3 9" fill="none" stroke="#ffe3af" stroke-width="3"/>
+              <circle cx="2" cy="-8" r="17" fill="#efc297"/><path d="m11-10 10 5-9 3" fill="#efc297"/>
+              <path d="M-17-14q-4-28 22-23 15 3 14 24Z" fill="#e6bd76"/><ellipse cx="0" cy="-13" rx="29" ry="6" fill="#f6d994"/><path d="M-16-21h32" stroke="#927151" stroke-width="5"/>
+              <circle cx="12" cy="-7" r="2" fill="#3a4850"/>
+              <g class="rod-arm"><path d="m6 20 17 13 21-9" fill="none" stroke="#f2c49a" stroke-width="11" stroke-linecap="round"/><path d="m6 20 11 9" stroke="#eba775" stroke-width="14" stroke-linecap="round"/><path d="M39 30Q76-35 132-51" fill="none" stroke="#493f40" stroke-width="4"/><path d="M88-24q22-20 44-27" fill="none" stroke="#e7c184" stroke-width="2"/><circle cx="48" cy="24" r="7" fill="#d3e3d1" stroke="#465d5e" stroke-width="3"/></g>
+            </g>
+            <path class="cast-line" d="M282 173Q398 180 495 339" fill="none" stroke="#f4f1d8" stroke-width="1.3" opacity=".7"/>
+            <g class="catch-splash" fill="none" stroke="#dcfff1" stroke-width="3"><ellipse cx="495" cy="340" rx="33" ry="8"/><path d="m475 328-9-14m29 12v-21m20 23 12-13"/></g>
+            <g class="foreground-reeds" stroke="#5c9c74" stroke-width="4" fill="none"><path d="M20 459q4-57-11-78m15 77q6-61 25-84m-18 94q15-38 35-49M781 480q-17-50-5-77m10 77q-2-35 14-54"/></g>
+          </svg>
           <div class="bobber hidden" id="bobber"><span></span></div>
           <div class="fish-shadow hidden" id="fishShadow" aria-hidden="true"></div>
           <div class="bite-alert hidden" id="biteAlert">❗ GIGITAN!</div>
-          <div class="scene-note" id="sceneNote">Hari yang indah untuk memancing.</div>
           <div class="scene-zone" id="zoneText">📍 SHORE</div>
         </div>
+
+        <p class="scene-caption" id="sceneNote">Perairan tenang menanti.</p>
 
         <div class="world-information">
           <div class="world-info-item">
@@ -348,6 +436,21 @@
             </div>
           </div>
 
+          <div class="exploration-map" aria-label="Peta perjalanan">
+            <div class="map-caption"><span>THE LUCKY ARCHIPELAGO</span><span>&#10023; N</span></div>
+            <svg viewBox="0 0 400 330" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M30 224Q6 160 63 112T133 38q39-29 87 7t36 70q-14 28 12 51t-20 62q-42 4-69 42t-73 18Z" fill="#4f8071" stroke="#a6c69b" stroke-width="5"/>
+              <path d="M47 213q-10-48 39-79t63-73q29-26 63 4t10 55q-12 34 24 59t-33 36q-37 9-60 48t-55 4Z" fill="#63927a"/>
+              <path d="M154 74q-28 46 15 69t-19 46-34 68" fill="none" stroke="#9ad4ca" stroke-width="9"/>
+              <path d="m275 233 32-30 31 13 5 30-38 13Z" fill="#a8b58b" stroke="#d6ce9e" stroke-width="4"/>
+              <path d="M77 226 105 157 172 99 240 173 302 233 343 128 292 55" fill="none" stroke="#f9e2a5" stroke-width="2" stroke-dasharray="4 7" opacity=".65"/>
+              <g fill="#315e54"><path d="m78 143 12-27 12 27Zm26-16 14-32 14 32Zm13 23 12-26 12 26Z"/></g>
+              <g fill="#c4dbcb"><path d="m160 88 13-27 15 27Zm19 4 10-21 12 21Z"/></g>
+              <g stroke="#9ad5d0" opacity=".3"><path d="M25 60h30m-20 6h35m225 230h40m-22 6h30M315 78h39m-25 7h38M30 300h43"/></g>
+            </svg>
+            <div id="mapNodes"></div>
+            <p class="map-legend">Pilih pin untuk melihat area &middot; &#128274; Belum terbuka</p>
+          </div>
           <div id="locationList" class="location-list"></div>
 
           <div class="help-card">
@@ -569,6 +672,38 @@
             <input type="checkbox" id="settingEffects">
           </label>
 
+          <section class="developer-section" aria-labelledby="developerTitle">
+            <label class="setting-row" for="developerEnabled">
+              <span class="setting-copy"><strong id="developerTitle">Developer Mode</strong>
+              <small>Kontrol pengujian untuk sesi tab ini.</small></span>
+              <input type="checkbox" id="developerEnabled">
+            </label>
+            <div id="developerTools" class="hidden">
+              <p class="tiny">Aksi developer mengubah dan menyimpan progres. Checkpoint dibuat saat mode diaktifkan; pulihkan setelah tes. Mematikan mode menyimpan hasil tes dan menghapus checkpoint.</p>
+              <div class="developer-actions">
+                <button type="button" data-dev-action="resources">+100.000 coins &amp; umpan</button>
+                <button type="button" data-dev-action="gear">Gear &amp; aquarium MAX</button>
+                <button type="button" data-dev-action="locations">Buka semua lokasi</button>
+                <button type="button" data-dev-action="samples">Isi sampel 24 spesies</button>
+              </div>
+              <label class="developer-field">Waktu dunia
+                <input id="developerTime" type="time" value="21:00">
+              </label>
+              <label class="developer-field">Cuaca<select id="developerWeather"></select></label>
+              <label class="developer-field">World event<select id="developerEvent"></select></label>
+              <button type="button" data-dev-action="world">Terapkan kondisi dunia</button>
+              <label class="developer-field">Ikan untuk encounter<select id="developerFish"></select></label>
+              <label class="developer-check"><input type="checkbox" id="developerShiny"> Paksa hasil shiny untuk encounter ini</label>
+              <div class="developer-actions">
+                <button type="button" data-dev-action="encounter">Mulai battle ikan pilihan</button>
+                <button type="button" data-dev-action="caught">Selesaikan battle: caught</button>
+                <button type="button" data-dev-action="cancel">Batalkan round</button>
+                <button type="button" data-dev-action="restore">Pulihkan progres awal</button>
+              </div>
+              <p id="developerStatus" class="tiny" role="status" aria-live="polite"></p>
+            </div>
+          </section>
+
           <h3 class="equipment-heading">Save Management</h3>
 
           <div class="save-info">
@@ -607,7 +742,7 @@
       </section>
     </main>
     <footer>
-      Lucky Fishing • v0.8.0 Release Candidate •
+      Lucky Fishing • v0.8.1 Release Hardening •
       Offline • Local Autosave
     </footer>
   </div>
@@ -620,9 +755,35 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.8.0 • Offline • Autosave</small>
+      <small>v0.8.1 • Offline • Autosave</small>
     </div>
   </div>
+  <div class="save-conflict-overlay hidden"
+       id="saveConflictOverlay"
+       role="alertdialog"
+       aria-modal="true"
+       aria-labelledby="saveConflictTitle">
+    <div class="save-conflict-dialog">
+      <div class="save-conflict-icon">⚠️</div>
+
+      <h2 id="saveConflictTitle">
+        Save Changed in Another Tab
+      </h2>
+
+      <p>
+        Lucky Fishing mendeteksi perubahan progres
+        dari tab browser lain. Game dihentikan di tab
+        ini agar data terbaru tidak tertimpa.
+      </p>
+
+      <button class="primary-button"
+              id="reloadSaveButton"
+              type="button">
+        ↻ Reload Latest Save
+      </button>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

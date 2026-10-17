@@ -1,7 +1,7 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.8.0
+   LUCKY FISHING v0.8.1
    PHASE 8 - POLISH & RELEASE PREPARATION
 ========================================= */
 
@@ -1514,22 +1514,60 @@ function readSave(rawOverride = undefined) {
   }
 }
 
+let externalSaveConflict = false;
+let lastKnownStoredSave = null;
+
+try {
+  lastKnownStoredSave = localStorage.getItem(SAVE_KEY);
+} catch {
+  // Storage failures are reported when a save is attempted.
+}
+
+function markSaveConflict() {
+  if (externalSaveConflict) return;
+  externalSaveConflict = true;
+  clearTimeout(pendingTimer);
+  pendingTimer = null;
+  setReeling(false);
+  document.querySelector(".app").inert = true;
+  $("menuOverlay").inert = true;
+  $("saveConflictOverlay").classList.remove("hidden");
+  $("reloadSaveButton").focus();
+}
+
+function canWriteSave() {
+  if (externalSaveConflict) return false;
+
+  const stored = localStorage.getItem(SAVE_KEY);
+  // Check before writing as well: a storage event can still be queued.
+  if (stored !== lastKnownStoredSave && stored !== JSON.stringify(save)) {
+    markSaveConflict();
+    return false;
+  }
+
+  lastKnownStoredSave = stored;
+  return true;
+}
+
 function writeSave() {
+  if (externalSaveConflict) {
+    return false;
+  }
+
   try {
-    // Unlock achievements before saving,
-    // so rewards and unlock flags are atomic.
+    if (!canWriteSave()) return false;
     syncAchievements();
 
-    localStorage.setItem(
-      SAVE_KEY,
-      JSON.stringify(save)
-    );
+    const serialized = JSON.stringify(save);
+    localStorage.setItem(SAVE_KEY, serialized);
+    lastKnownStoredSave = serialized;
 
     hasSavedGame = true;
-  } catch {
-    showToast(
-      "Save gagal. Periksa penyimpanan browser."
-    );
+    return true;
+  } catch (error) {
+    console.error("Save failed:", error);
+    showToast("Save gagal. Periksa storage browser.");
+    return false;
   }
 }
 
@@ -1574,7 +1612,7 @@ let fishingHiddenAt = null;
 ========================================= */
 
 function resolveWaitingBite() {
-  if (phase !== "waiting" || document.hidden || fishingHiddenAt !== null) return;
+  if (externalSaveConflict || phase !== "waiting" || document.hidden || fishingHiddenAt !== null) return;
 
   const activeBait = BAITS[round.bait] || BAITS.worm;
   const baseEmptyChance = round.perfect ? 0.08 : 0.12;
@@ -1633,6 +1671,7 @@ function resolveWaitingBite() {
 
 function scheduleWaitingBite(delayMs) {
   clearTimeout(pendingTimer);
+  if (externalSaveConflict) return;
 
   waitingRemainingMs = Math.max(1, delayMs);
   waitingStartedAt = performance.now();
@@ -1681,6 +1720,7 @@ function pauseFishingForVisibility() {
 }
 
 function resumeFishingAfterVisibility() {
+  if (externalSaveConflict) return;
   if (fishingHiddenAt === null) return;
 
   const now = performance.now();
@@ -1718,6 +1758,21 @@ function resumeFishingAfterVisibility() {
   worldLastTick = now;
 
   $("gamePauseNotice").classList.add("hidden");
+}
+
+/* =========================================
+   RELEASE FIX — WINDOW FOCUS PAUSE
+========================================= */
+
+function syncFishingFocus() {
+  const inactive =
+    document.hidden || !document.hasFocus();
+
+  if (inactive) {
+    pauseFishingForVisibility();
+  } else {
+    resumeFishingAfterVisibility();
+  }
 }
 
 /* =========================================
@@ -2285,6 +2340,62 @@ function handleAquariumAction(index, action) {
    AQUARIUM RENDERING
 ========================================= */
 
+
+const FISH_ART = {
+ nila:["#73b9be","#d4ece0","round","bars"],mas:["#edaa55","#ffe2a4","round","scales"],
+ lele:["#73849b","#b7c8cc","cat","spots"],gurame:["#9dbf9c","#e6ebbf","disc","bars"],
+ patin:["#8aacc0","#eef0dc","cat","plain"],golden:["#f4c858","#fff0ae","round","scales"],
+ crystal:["#89def0","#eefbff","round","crystal"],moon:["#e8dbd4","#ed9b91","round","patches"],
+ ancient:["#bda06c","#e5dcac","round","scales"],astral:["#9b87d7","#dce2ff","eel","stars"],
+ whisper:["#b6e7de","#effff3","eel","stars"],trout:["#85b9a8","#efb3bf","slim","spots"],
+ arowana:["#d8bc73","#fff0b9","slim","scales"],snapper:["#e87972","#ffc4a0","round","scales"],
+ grouper:["#9b9c7b","#ddd9a5","round","spots"],mackerel:["#65a4b8","#d1e2db","slim","bars"],
+ parrotfish:["#65c6b8","#f2a1bb","disc","patches"],tuna:["#5d94c2","#e1e6dd","slim","plain"],
+ marlin:["#548bc0","#d1edeb","bill","bars"],angler:["#8b709e","#c9a7b5","angler","spots"],
+ phantom:["#8b9bbf","#e4e9ed","shark","plain"],leviathan:["#507f9b","#a6ecdf","eel","stars"],
+ eclipse:["#847ca5","#f2b76e","round","patches"],nocturne:["#8581be","#d1b8eb","eel","stars"]
+};
+function createFishPortrait(fish, item = {}) {
+ const [base, accent, shape, pattern] = FISH_ART[fish.id] || FISH_ART.nila;
+ const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+ svg.setAttribute("viewBox", "0 0 140 80");
+ svg.setAttribute("aria-hidden", "true");
+ svg.classList.add("fish-portrait");
+ svg.dataset.species = fish.id;
+ svg.style.setProperty("--fish-base", item.shiny ? "#f0cc73" : base);
+ svg.style.setProperty("--fish-accent", item.shiny ? "#fff1bb" : accent);
+ const bodies = {
+ round:"M34 40C45 12 91 12 113 33Q126 40 113 47C91 68 45 68 34 40Z",
+ disc:"M38 40C46 4 94 4 113 32Q128 40 113 48C94 76 46 76 38 40Z",
+ slim:"M30 40Q70 11 109 31L123 40 109 49Q70 69 30 40Z",
+ cat:"M28 40Q67 20 108 29Q131 40 108 51Q67 60 28 40Z",
+ eel:"M15 51Q42 20 67 36T117 32Q135 42 115 48Q91 64 65 47T15 51Z",
+ shark:"M28 40 70 27 106 30 129 40 103 51 70 53Z",
+ bill:"M30 40Q70 18 103 32L137 36 112 42Q73 64 30 40Z",
+ angler:"M36 40Q45 9 91 19Q113 22 120 43L109 57Q58 69 36 40Z"
+ };
+ const markings = {
+ plain:"",
+ bars:'<path d="m52 28 6 22m8-25 6 29m8-28 5 23m9-20 3 15" stroke="#183a534d" stroke-width="4"/>',
+ scales:'<path d="m49 33 6 6-6 6m14-16 6 9-6 10m14-20 6 10-6 10m14-16 5 6-5 7" fill="none" stroke="var(--fish-accent)" stroke-width="2" opacity=".55"/>',
+ spots:'<g fill="#253d5d66"><circle cx="53" cy="35" r="3"/><circle cx="67" cy="44" r="3"/><circle cx="79" cy="32" r="2"/><circle cx="90" cy="45" r="3"/></g>',
+ patches:'<path d="M49 27q18-6 18 10T51 51Zm27-3q16 0 17 12L83 48 74 39Z" fill="var(--fish-accent)"/>',
+ crystal:'<path d="m47 38 17-15 18 14-17 18Zm36 0 13-11 12 12-14 13Z" fill="var(--fish-accent)" opacity=".5"/>',
+ stars:'<path d="m54 35 2 5 5 2-5 2-2 5-2-5-5-2 5-2Zm28 9 2 4 4 2-4 2-2 4-2-4-4-2 4-2Z" fill="var(--fish-accent)"/>'
+ };
+ svg.innerHTML = '<g class="portrait-tail"><path d="M40 40 12 19 17 40 12 61Z" fill="var(--fish-base)" stroke="var(--fish-accent)" stroke-width="1.5"/><path d="M17 28 36 40 17 52" fill="none" stroke="var(--fish-accent)" opacity=".55"/></g>' +
+ '<path d="' + (shape === "shark" ? "M63 30 73 6 88 31" : "M49 29 65 12 85 28") + '" fill="var(--fish-base)" stroke="var(--fish-accent)" stroke-width="1.3"/>' +
+ '<path d="' + bodies[shape] + '" fill="var(--fish-base)" stroke="#123b5355" stroke-width="1.5"/>' +
+ '<path d="M44 44Q77 62 108 45Q78 71 44 44Z" fill="var(--fish-accent)" opacity=".6"/>' + markings[pattern] +
+ '<path class="portrait-fin" d="M78 40 61 42 74 56 84 45" fill="var(--fish-accent)" opacity=".8"/>' +
+ '<path d="M96 31q-7 10 0 19" fill="none" stroke="#173a5055" stroke-width="2"/>' +
+ '<circle cx="107" cy="35" r="5" fill="#f4f5dd"/><circle cx="108" cy="35" r="2.8" fill="#122d43"/><circle cx="109" cy="34" r="1" fill="white"/>' +
+ (shape === "cat" ? '<path d="M116 43q13 7 17-1m-18 3q9 16 16 12" fill="none" stroke="var(--fish-accent)" stroke-width="2"/>' : "") +
+ (shape === "angler" ? '<path d="M85 22Q78-2 105 8" fill="none" stroke="var(--fish-base)" stroke-width="3"/><circle cx="107" cy="9" r="5" fill="#d9f9b1"/>' : "") +
+ (item.shiny ? '<path d="m30 9 2 5 5 2-5 2-2 5-2-5-5-2 5-2m89 42 2 4 4 2-4 2-2 4-2-4-4-2 4-2" fill="#fff2ae"/>' : "");
+ return svg;
+}
+
 function renderAquarium() {
   const layer = $("aquariumFishLayer");
   const list = $("aquariumFishList");
@@ -2345,7 +2456,8 @@ function renderAquarium() {
       item.favorite ? "favorite-fish" : ""
     ].filter(Boolean).join(" ");
 
-    sprite.textContent = fish.icon;
+    sprite.append(createFishPortrait(fish, item));
+    sprite.style.width = (["eel", "shark", "bill"].includes(FISH_ART[fish.id]?.[2]) ? 92 : 76) + "px";
     sprite.title = fish.name;
     sprite.setAttribute("aria-hidden", "true");
 
@@ -2377,8 +2489,8 @@ function renderAquarium() {
       "list-item aquarium-fish-list-item";
 
     const icon = document.createElement("span");
-    icon.className = "list-item-icon";
-    icon.textContent = fish.icon;
+    icon.className = "list-item-icon fish-thumbnail";
+    icon.append(createFishPortrait(fish, item));
 
     const body = document.createElement("div");
     body.className = "list-item-body";
@@ -2462,13 +2574,15 @@ function animateAquarium(dt, now) {
 
       sprite.x += sprite.vx * dt * speedMultiplier;
 
-      if (sprite.x > 91) {
-        sprite.x = 91;
+      const edge = Math.min(35, Math.max(9,
+        sprite.node.offsetWidth / Math.max(1, $("aquariumFishLayer").clientWidth) * 50 + 2));
+      if (sprite.x > 100 - edge) {
+        sprite.x = 100 - edge;
         sprite.vx = -Math.abs(sprite.vx);
       }
 
-      if (sprite.x < 9) {
-        sprite.x = 9;
+      if (sprite.x < edge) {
+        sprite.x = edge;
         sprite.vx = Math.abs(sprite.vx);
       }
     }
@@ -2951,7 +3065,7 @@ function exportGameSave() {
     return;
   }
 
-  writeSave();
+  if (!writeSave()) return;
 
   const backup = {
     format: BACKUP_FORMAT,
@@ -2996,7 +3110,7 @@ function exportGameSave() {
 ========================================= */
 
 async function importGameSave(file) {
-  if (!file) return;
+  if (!file || externalSaveConflict) return;
 
   // Protect against accidentally importing huge files.
   if (file.size > 2 * 1024 * 1024) {
@@ -3019,6 +3133,12 @@ async function importGameSave(file) {
     }
 
     const sourceVersion = backup.save.version;
+
+    if (backup.version !== sourceVersion) {
+      throw new Error(
+        "Versi metadata dan isi backup tidak cocok."
+      );
+    }
 
     if (
       !Number.isInteger(sourceVersion) ||
@@ -3050,13 +3170,13 @@ async function importGameSave(file) {
     );
 
     if (!confirmed) return;
+    if (!canWriteSave()) return;
 
     // Save validated data BEFORE changing game state.
     // If storage fails, keep the current game untouched.
-    localStorage.setItem(
-      SAVE_KEY,
-      JSON.stringify(restored)
-    );
+    const serialized = JSON.stringify(restored);
+    localStorage.setItem(SAVE_KEY, serialized);
+    lastKnownStoredSave = serialized;
 
     clearTimeout(pendingTimer);
     pendingTimer = null;
@@ -3224,7 +3344,32 @@ function advanceWorld(dt) {
    WORLD UI
 ========================================= */
 
+function renderSceneCaption() {
+  const weatherNotes = {
+    rain: "Rintik hujan membentuk riak di permukaan air.",
+    storm: "Badai datang. Perhatikan tension saat ikan melawan.",
+    fog: "Kabut menyelimuti perairan. Perhatikan pelampung.",
+    cloudy: "Langit mendung, perairan terasa tenang."
+  };
+  const periodNotes = {
+    morning: "Cahaya pagi menyapa perairan.",
+    day: "Langit cerah. Saatnya melempar kail.",
+    sunset: "Senja mewarnai air dengan cahaya hangat.",
+    night: "Malam sunyi. Ada kehidupan di bawah permukaan."
+  };
+  const actions = {
+    aiming: "Cari timing Perfect Cast!",
+    waiting: "Tenang... perhatikan pelampung.",
+    biting: "TARIK SEKARANG!",
+    battle: "Jaga tension agar tali tidak putus!",
+    result: "Satu sesi selesai."
+  };
+  $("sceneNote").textContent = actions[phase] ||
+    weatherNotes[save.world.weather] || periodNotes[getDaypart(save.world.minute)];
+}
+
 function renderWorld() {
+  renderSceneCaption();
   const world = save.world;
   const weather = WEATHER_TYPES[world.weather];
   const period = getDaypart(world.minute);
@@ -3315,7 +3460,9 @@ function tickWorld() {
 
   // Pause while page is hidden or main menu is open.
   if (
+    externalSaveConflict ||
     document.hidden ||
+    fishingHiddenAt !== null ||
     !$("menuOverlay").classList.contains("hidden")
   ) {
     return;
@@ -3485,7 +3632,37 @@ function renderLocationScene() {
     });
 }
 
+function renderTravelMap() {
+  const positions = [[19,68],[26,47],[43,30],[60,52],[76,70],[86,39],[73,17]];
+  $("mapNodes").replaceChildren();
+  Object.values(LOCATIONS).forEach((location, index) => {
+    const pin = document.createElement("button");
+    const owned = isLocationUnlocked(location.id);
+    const current = save.location === location.id;
+    pin.type = "button";
+    pin.className = "map-pin" + (current ? " current" : "") + (!owned ? " locked" : "");
+    pin.style.left = positions[index][0] + "%";
+    pin.style.top = positions[index][1] + "%";
+    pin.setAttribute("aria-label", location.name + (current ? ", lokasi sekarang" : owned ? ", kunjungi" : ", lihat syarat buka"));
+    if (current) pin.setAttribute("aria-current", "location");
+    const marker = document.createElement("span");
+    marker.textContent = owned ? location.icon : "\u{1F512}";
+    const label = document.createElement("small");
+    label.textContent = location.name;
+    pin.append(marker, label);
+    pin.addEventListener("click", () => {
+      const card = document.querySelector('[data-location-card="' + location.id + '"]');
+      card?.scrollIntoView({behavior: shouldReduceMotion() ? "instant" : "smooth", block: "nearest"});
+      card?.focus({preventScroll: true});
+      if (owned && !current) travelToLocation(location.id);
+      else if (!owned) showToast(getMissingRequirements(location)[0] || "Area siap dibuka melalui tombol di bawah.");
+    });
+    $("mapNodes").append(pin);
+  });
+}
+
 function renderLocations() {
+  renderTravelMap();
   const list = $("locationList");
   list.replaceChildren();
 
@@ -3513,6 +3690,8 @@ function renderLocations() {
 
     const card = document.createElement("article");
 
+    card.dataset.locationCard = location.id;
+    card.tabIndex = -1;
     card.className = [
       "location-option",
       active ? "is-current" : "",
@@ -3912,6 +4091,7 @@ function perfectPower() {
 }
 
 function startAiming() {
+  developerForceShiny = false;
   const bait = BAITS[save.selectedBait];
 
   if (!bait || getBaitCount(save.selectedBait) < 1) {
@@ -4045,6 +4225,11 @@ function endRound(kind) {
 
   if (kind === "caught") {
     result = generateCatch(round.fish);
+    if (developerSession && developerForceShiny && !result.shiny) {
+      result.shiny = true;
+      result.price = Math.max(1, Math.round(result.price * 1.5));
+    }
+    developerForceShiny = false;
 
     registerCatch(result);
 
@@ -4199,6 +4384,7 @@ function displayZone(zone) {
 }
 
 function renderFishing() {
+  $("lakeScene").dataset.phase = phase;
   const titles = {
     idle: [
       "Siap memancing?",
@@ -4287,16 +4473,7 @@ function renderFishing() {
 
   $("zoneText").textContent = `📍 ${displayZone(round.zone)}`;
 
-  const notes = {
-    idle: "Hari yang indah untuk memancing.",
-    aiming: "Cari timing Perfect Cast!",
-    waiting: "Tenang... perhatikan pelampung.",
-    biting: "TARIK SEKARANG!",
-    battle: "Jaga tension agar tali tidak putus!",
-    result: "Satu sesi selesai."
-  };
-
-  $("sceneNote").textContent = notes[phase];
+  renderSceneCaption();
 
   $("actionButton").classList.toggle(
     "hidden",
@@ -4361,7 +4538,7 @@ function renderResult() {
   $("resultActions").replaceChildren();
   $("catchMeta").replaceChildren();
 
-  $("resultIcon").classList.remove("shiny-glow");
+  $("resultIcon").classList.remove("shiny-glow", "illustrated-result");
 
   /* =========================================
      PHASE 6 — TREASURE RESULT UI
@@ -4457,7 +4634,8 @@ function renderResult() {
 
   if (!fish) return;
 
-  $("resultIcon").textContent = fish.icon;
+  $("resultIcon").replaceChildren(createFishPortrait(fish, result));
+  $("resultIcon").classList.add("illustrated-result");
 
   $("resultIcon").classList.toggle(
     "shiny-glow",
@@ -4846,56 +5024,68 @@ function renderFishdex() {
       `${unlocked ? "" : "unknown"} ` +
       `${entry?.shiny ? "is-shiny" : ""}`;
 
-    const icon = document.createElement("span");
-    icon.className = "list-item-icon";
-    icon.textContent = unlocked ? fish.icon : "❔";
-
-    const body = document.createElement("div");
-    body.className = "list-item-body";
-
-    const name = document.createElement("strong");
-    const description = document.createElement("small");
-
-    if (unlocked) {
-      name.textContent =
-        `${fish.name} ${entry.shiny ? "✨" : ""}`;
-
-      const weight = Number(entry.largest || 0).toFixed(2);
-
-      const smallest = entry.smallest
-        ? `${Number(entry.smallest).toFixed(2)} kg`
-        : "—";
-
-      const longest = entry.longest
-        ? `${entry.longest} cm`
-        : "—";
-
-      const firstDate = entry.firstCaught
-        ? new Date(entry.firstCaught).toLocaleDateString("id-ID")
-        : "Tidak tercatat (save lama)";
-
-      description.textContent =
-        `${fish.rarity} • ${entry.caught}× tertangkap\n` +
-        `Terberat: ${weight} kg • Terkecil: ${smallest}\n` +
-        `Terpanjang: ${longest} • Shiny: ${entry.shiny || 0}\n` +
-        `Harga terbaik: 🪙 ${fmt(entry.bestPrice || 0)}\n` +
-        `Pertama tertangkap: ${firstDate}`;
-
-      description.style.whiteSpace = "pre-line";
-    } else {
-      name.textContent =
-        fish.rarity === "Secret"
-          ? "??? Secret Fish"
-          : "??? Belum ditemukan";
-
-      description.textContent =
-        fish.rarity === "Secret"
-          ? "Ada sesuatu yang tersembunyi di kedalaman..."
-          : "Temukan dengan memancing di zona yang tepat.";
+    const artwork = document.createElement("div");
+    artwork.className = "dex-artwork";
+    artwork.append(createFishPortrait(unlocked ? fish : FISH_BY_ID.nila,
+      {shiny: Boolean(entry?.shiny)}));
+    const number = document.createElement("span");
+    number.className = "dex-number";
+    number.textContent = "#" + String(FISH.indexOf(fish) + 1).padStart(3, "0");
+    artwork.append(number);
+    if (!unlocked) {
+      const mystery = document.createElement("span");
+      mystery.className = "dex-mystery";
+      mystery.textContent = "?";
+      artwork.append(mystery);
     }
 
-    body.append(name, description);
-    row.append(icon, body);
+    const body = document.createElement("div");
+    body.className = "list-item-body dex-card-body";
+    const rarity = document.createElement("span");
+    rarity.className = "dex-rarity";
+    rarity.textContent = fish.rarity + (entry?.shiny ? " / SHINY" : "");
+    const name = document.createElement("strong");
+    name.textContent = unlocked ? fish.name :
+      fish.rarity === "Secret" ? "Secret Fish" : "Belum ditemukan";
+    body.append(rarity, name);
+
+    if (unlocked) {
+      const stats = document.createElement("div");
+      stats.className = "dex-records";
+      const records = [
+        ["Tertangkap", fmt(entry.caught || 0) + " kali"],
+        ["Terberat", Number(entry.largest || 0).toFixed(2) + " kg"],
+        ["Terkecil", entry.smallest ? Number(entry.smallest).toFixed(2) + " kg" : "\u2014"],
+        ["Terpanjang", entry.longest ? entry.longest + " cm" : "\u2014"],
+        ["Shiny", fmt(entry.shiny || 0)],
+        ["Harga terbaik", fmt(entry.bestPrice || 0) + " coins"]
+      ];
+      for (const [label, value] of records) {
+        const stat = document.createElement("div");
+        const caption = document.createElement("span");
+        const record = document.createElement("b");
+        caption.textContent = label;
+        record.textContent = value;
+        stat.append(caption, record);
+        stats.append(stat);
+      }
+      const date = document.createElement("small");
+      date.className = "dex-first-catch";
+      const timestamp = entry.firstCaught ? new Date(entry.firstCaught) : null;
+      date.textContent = "Penemuan pertama: " +
+        (timestamp && Number.isFinite(timestamp.getTime())
+          ? timestamp.toLocaleDateString("id-ID")
+          : "Tidak tercatat (save lama)");
+      body.append(stats, date);
+    } else {
+      const hint = document.createElement("small");
+      hint.className = "dex-discovery-hint";
+      hint.textContent = fish.rarity === "Secret"
+        ? "Ada sesuatu yang tersembunyi di kedalaman..."
+        : "Jelajahi perairan dan temukan spesies ini.";
+      body.append(hint);
+    }
+    row.append(artwork, body);
 
     list.append(row);
   });
@@ -4928,11 +5118,11 @@ function renderInventory() {
 
     const row = document.createElement("div");
     row.className =
-      `list-item ${item.shiny ? "is-shiny fishdex-entry" : ""}`;
+      `list-item inventory-fish-row ${item.shiny ? "is-shiny fishdex-entry" : ""}`;
 
     const icon = document.createElement("span");
-    icon.className = "list-item-icon";
-    icon.textContent = fish.icon;
+    icon.className = "list-item-icon fish-thumbnail";
+    icon.append(createFishPortrait(fish, item));
 
     if (item.shiny) {
       icon.classList.add("shiny-glow");
@@ -5331,25 +5521,60 @@ function renderAll() {
    GAME LOOP
 ========================================= */
 
-function frame(now) {
-  const elapsed = now - (lastFrame || now);
+/* =========================================
+   RELEASE FIX — FRAME STALL RECOVERY
+========================================= */
 
-  const dt = Math.min(
-    elapsed / 1000,
-    0.05
+function recoverFromFrameStall(elapsed) {
+  if (elapsed <= 250) return;
+
+  // Only compensate during active gameplay.
+  if (phase === "biting") {
+    round.deadline += elapsed;
+  }
+
+  if (phase === "battle") {
+    round.nextDash += elapsed;
+
+    if (round.boss) {
+      round.boss.nextAttack += elapsed;
+
+      if (round.boss.warning) {
+        round.boss.attackAt += elapsed;
+      }
+
+      if (round.boss.messageUntil) {
+        round.boss.messageUntil += elapsed;
+      }
+    }
+  }
+}
+
+function frame(now) {
+  const elapsed = Math.max(
+    0,
+    now - (lastFrame || now)
   );
 
+  const dt = Math.min(elapsed / 1000, 0.05);
 
+  const paused =
+    externalSaveConflict ||
+    document.hidden ||
+    fishingHiddenAt !== null ||
+    !$("menuOverlay").classList.contains("hidden");
+
+  // Recover suspended timers only if no explicit
+  // visibility/focus pause already handled them.
+  if (!paused) {
+    recoverFromFrameStall(elapsed);
+  }
 
   lastFrame = now;
 
-  /* Pause gameplay on hidden tab or welcome menu */
+  $("lakeScene").classList.toggle("scene-paused", paused);
 
-  if (
-    document.hidden ||
-    fishingHiddenAt !== null ||
-    !$("menuOverlay").classList.contains("hidden")
-  ) {
+  if (paused) {
     requestAnimationFrame(frame);
     return;
   }
@@ -5556,6 +5781,158 @@ $("dexAreaFilter").addEventListener(
   "change",
   renderFishdex
 );
+
+
+// Developer controls are session-only; save schema remains unchanged.
+const DEV_SESSION_KEY = "lucky-fishing-developer-session";
+let developerSession = null;
+let developerForceShiny = false;
+try {
+  const stored = JSON.parse(sessionStorage.getItem(DEV_SESSION_KEY));
+  if (stored && readSave(stored.checkpoint)) developerSession = stored;
+} catch { /* Developer tools stay off if session storage is unavailable. */ }
+
+function renderDeveloperTools() {
+  const active = Boolean(developerSession);
+  $("developerEnabled").checked = active;
+  $("developerTools").classList.toggle("hidden", !active);
+  $("developerBadge").classList.toggle("hidden", !active);
+}
+
+function resetDeveloperRound() {
+  clearTimeout(pendingTimer);
+  pendingTimer = null;
+  waitingRemainingMs = 0;
+  waitingStartedAt = 0;
+  developerForceShiny = false;
+  setReeling(false);
+  result = null;
+  save.pendingCatch = null;
+  phase = "idle";
+  round.fish = null;
+  round.boss = null;
+  round.conditions = null;
+  round.perfect = false;
+  round.zone = "shore";
+}
+
+function developerAction(action) {
+  if (!developerSession || externalSaveConflict || !canWriteSave()) return;
+  if (["resources", "gear", "locations", "samples", "world", "encounter"].includes(action) && phase !== "idle") {
+    showToast("Batalkan round atau selesaikan hasil memancing dahulu.");
+    return;
+  }
+  if (action === "resources") {
+    save.coins += 100000;
+    save.bait += 100;
+    Object.keys(save.baitStock).forEach(id => save.baitStock[id] += 100);
+  } else if (action === "gear") {
+    save.rod = save.reel = save.hook = save.aquariumLevel = 4;
+  } else if (action === "locations") {
+    save.unlockedLocations = [...LOCATION_IDS];
+    save.mapFragments = MAP_REQUIRED;
+  } else if (action === "samples") {
+    const free = MAX_INVENTORY - save.inventory.length;
+    const missing = FISH.filter(fish => !save.inventory.some(item => item.id === fish.id));
+    missing.slice(0, free).forEach(fish => {
+      const catchData = generateCatch(fish);
+      save.inventory.push(catchData);
+      registerCatch(catchData);
+    });
+    if (missing.length > free) showToast("Inventory penuh; sebagian sampel belum ditambahkan.");
+  } else if (action === "world") {
+    const time = $("developerTime").value;
+    if (!/^\d{2}:\d{2}$/.test(time)) return showToast("Pilih waktu yang valid.");
+    const [hours, minutes] = time.split(":").map(Number);
+    save.world.minute = hours * 60 + minutes;
+    save.world.weather = $("developerWeather").value;
+    save.world.weatherRemaining = WEATHER_DURATION;
+    save.world.event = $("developerEvent").value || null;
+    save.world.eventRemaining = save.world.event ? 120 : 0;
+    worldLastTick = performance.now();
+  } else if (action === "encounter") {
+    const fish = FISH_BY_ID[$("developerFish").value];
+    if (!fish) return;
+    round.fish = fish;
+    round.bait = save.selectedBait;
+    round.zone = "deep";
+    round.perfect = true;
+    round.conditions = {...getWorldConditions(), day: save.world.day, minute: save.world.minute};
+    round.deadline = performance.now() + 10000;
+    developerForceShiny = $("developerShiny").checked;
+    phase = "biting";
+    hookFish();
+    setTab("fishing");
+  } else if (action === "caught") {
+    if (phase !== "battle" || !round.fish) return showToast("Mulai battle dahulu.");
+    if (round.boss) round.boss.stamina = 0;
+    endRound("caught");
+    setTab("fishing");
+  } else if (action === "cancel") {
+    if (save.pendingCatch) return showToast("Simpan atau jual hasil tangkapan dahulu.");
+    resetDeveloperRound();
+  } else if (action === "restore") {
+    const restored = readSave(developerSession.checkpoint);
+    if (!restored) return showToast("Checkpoint tidak valid.");
+    resetDeveloperRound();
+    save = restored;
+    worldLastTick = performance.now();
+    worldSaveAccumulator = 0;
+    try { sessionStorage.removeItem(DEV_SESSION_KEY); } catch {}
+    developerSession = null;
+    applySettings();
+  } else return;
+  writeSave();
+  renderAll();
+  renderDeveloperTools();
+  $("developerStatus").textContent = "Aksi terakhir: " + action + ". Progres tersimpan.";
+}
+
+$("developerEnabled").addEventListener("change", () => {
+  if (externalSaveConflict || !canWriteSave()) return renderDeveloperTools();
+  if ($("developerEnabled").checked) {
+    if (phase !== "idle" || save.pendingCatch) {
+      showToast("Selesaikan round sebelum mengaktifkan Developer Mode.");
+      return renderDeveloperTools();
+    }
+    const session = {checkpoint: JSON.parse(JSON.stringify(save))};
+    try {
+      sessionStorage.setItem(DEV_SESSION_KEY, JSON.stringify(session));
+      developerSession = session;
+    } catch {
+      showToast("Checkpoint gagal dibuat; Developer Mode belum aktif.");
+    }
+  } else {
+    developerForceShiny = false;
+    try { sessionStorage.removeItem(DEV_SESSION_KEY); } catch {}
+    developerSession = null;
+    $("developerStatus").textContent = "";
+    showToast("Developer Mode mati. Hasil tes tetap tersimpan.");
+  }
+  renderDeveloperTools();
+});
+
+$("developerTools").addEventListener("click", event => {
+  const button = event.target.closest("button[data-dev-action]");
+  if (button) developerAction(button.dataset.devAction);
+});
+$("developerBadge").addEventListener("click", () => {
+  setTab("settings");
+  $("developerTitle").scrollIntoView({block: "center", behavior: shouldReduceMotion() ? "instant" : "smooth"});
+});
+for (const [id, entries] of [
+  ["developerWeather", Object.entries(WEATHER_TYPES).map(([key, value]) => [key, value.name])],
+  ["developerEvent", [["", "Tidak ada"], ...Object.entries(WORLD_EVENTS).map(([key, value]) => [key, value.name])]],
+  ["developerFish", FISH.map(fish => [fish.id, fish.name + (BOSS_FISH[fish.id] ? " (BOSS)" : "")])]
+]) {
+  entries.forEach(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    $(id).append(option);
+  });
+}
+renderDeveloperTools();
 
 /* =========================================
    SHOP EVENTS
@@ -5842,13 +6219,13 @@ requestAnimationFrame(frame);
 /* Start the Living World simulation */
 setInterval(tickWorld, 1000);
 
-/* Prevent background-tab time jumps */
+/* Pause when tab or window loses focus */
+
+window.addEventListener("blur", syncFishingFocus);
+window.addEventListener("focus", syncFishingFocus);
+
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    pauseFishingForVisibility();
-  } else {
-    resumeFishingAfterVisibility();
-  }
+  syncFishingFocus();
 
   worldLastTick = performance.now();
 
@@ -5859,4 +6236,27 @@ document.addEventListener("visibilitychange", () => {
 
 window.addEventListener("pagehide", () => {
   if (hasSavedGame) writeSave();
+});
+
+
+/* =========================================
+   RELEASE FIX — MULTI-TAB DETECTION
+========================================= */
+
+window.addEventListener("storage", event => {
+  if (event.storageArea && event.storageArea !== localStorage) return;
+  if (event.key !== SAVE_KEY && event.key !== null) return;
+
+  const stored = localStorage.getItem(SAVE_KEY);
+  if (stored === lastKnownStoredSave) return;
+  if (stored === JSON.stringify(save)) {
+    lastKnownStoredSave = stored;
+    return;
+  }
+
+  markSaveConflict();
+});
+
+$("reloadSaveButton").addEventListener("click", () => {
+  window.location.reload();
 });
