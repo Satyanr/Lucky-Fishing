@@ -1053,3 +1053,278 @@ body{background:radial-gradient(circle at 50% -10%,#25545d,#0b2027 58%);line-hei
     transition: none !important;
   }
 }
+
+
+/* =========================================
+   LUCKY FISHING v0.6.0
+   AQUARIUM & TREASURE
+========================================= */
+
+/* Aquarium */
+
+.aquarium-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  color: #c9f2e4;
+  font-size: 12px;
+}
+
+.aquarium-tank {
+  height: 245px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 5px solid #4d8793;
+  background: linear-gradient(
+    180deg,
+    #328eaa 0%,
+    #1a627e 45%,
+    #0b304c 100%
+  );
+  box-shadow:
+    inset 0 0 35px #062d44a6,
+    0 12px 24px #061a2766;
+}
+
+.aquarium-light {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    #c0ffff26 10%,
+    transparent 33%,
+    #a9e8ff1c 57%,
+    transparent 80%
+  );
+  pointer-events: none;
+}
+
+.aquarium-floor {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 27px;
+  background: linear-gradient(
+    180deg,
+    #c4ab81,
+    #8e775f
+  );
+  border-top: 4px solid #d8be93;
+  z-index: 2;
+}
+
+.aquarium-plants {
+  position: absolute;
+  bottom: 18px;
+  left: 5%;
+  z-index: 2;
+  font-size: 45px;
+  filter: drop-shadow(0 2px 3px #001c24);
+}
+
+.aquarium-bubbles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle,
+      #d2ffff88 2px,
+      transparent 3px
+    ),
+    radial-gradient(
+      circle,
+      #c6f4ff77 3px,
+      transparent 4px
+    );
+  background-size: 75px 85px, 110px 125px;
+  background-position: 15px 10px, 60px 50px;
+  opacity: 0.6;
+}
+
+#aquariumFishLayer {
+  position: absolute;
+  inset: 0 0 25px;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.aquarium-fish {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 31px;
+  line-height: 1;
+  user-select: none;
+  white-space: nowrap;
+  will-change: left, top, transform;
+  filter: drop-shadow(2px 4px 3px #03263b);
+}
+
+.aquarium-fish.shiny-fish {
+  filter: drop-shadow(0 0 9px #ffe6a1);
+}
+
+.aquarium-fish.favorite-fish::after {
+  content: "♥";
+  position: absolute;
+  top: -12px;
+  right: -5px;
+  color: #ff9aae;
+  font-size: 13px;
+}
+
+.aquarium-fish-list-item {
+  flex-wrap: wrap;
+}
+
+.aquarium-fish-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.aquarium-fish-actions button {
+  flex: 1;
+  min-width: 75px;
+}
+
+.aquarium-fish-actions .favorite-on {
+  color: #ffd1dd;
+  border-color: #d790a6;
+}
+
+.aquarium-fish-actions .sell-fish {
+  background: #695046;
+  border-color: #927568;
+}
+
+/* Treasure */
+
+.treasure-progress {
+  padding: 15px;
+  background: #1d3e4c;
+  border: 1px solid #476e79;
+  border-radius: 15px;
+  margin: 16px 0;
+}
+
+.treasure-progress-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.treasure-progress-title strong {
+  color: #f4d68c;
+}
+
+.map-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #d5a65b,
+    #ffe7a1
+  );
+  transition: width .35s ease;
+}
+
+#mapDescription {
+  margin: 7px 0 0;
+  color: #b5cfd0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.treasure-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.treasure-summary > div {
+  padding: 14px;
+  border-radius: 12px;
+  background: #1c3e46;
+}
+
+.treasure-summary strong {
+  display: block;
+  font-size: 20px;
+  color: #e7d295;
+}
+
+.treasure-summary span {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Moonlight Lagoon */
+
+.lake-scene.area-moonlight {
+  background: linear-gradient(
+    180deg,
+    #21265a,
+    #57508f 55%,
+    #253c6c
+  );
+}
+
+.area-moonlight .sun {
+  background: #e6ddff;
+  box-shadow: 0 0 72px #c8afff;
+}
+
+.area-moonlight .mountain-far {
+  background: #50518c;
+}
+
+.area-moonlight .mountain-near {
+  background: #343766;
+}
+
+.area-moonlight .shoreline {
+  background: #6e72a1;
+}
+
+.area-moonlight .water {
+  background: linear-gradient(
+    180deg,
+    #7386cc,
+    #3d5998,
+    #1b2f65
+  );
+}
+
+@media (max-width: 480px) {
+  .aquarium-tank {
+    height: 210px;
+  }
+
+  .aquarium-fish {
+    font-size: 26px;
+  }
+
+  .aquarium-fish-actions button {
+    min-width: 70px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aquarium-fish {
+    will-change: auto;
+  }
+}

@@ -15,7 +15,7 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.5.0</b></span>
+          <span>Cozy fishing adventure <b>v0.6.0</b></span>
         </div>
       </div>
       <div class="header-right">
@@ -40,6 +40,13 @@
       </button>
       <button class="tab" data-tab="fishdex" type="button">📖 Fishdex</button>
       <button class="tab" data-tab="inventory" type="button">🎒 Inventory</button>
+      <button class="tab" data-tab="aquarium" type="button">
+        🐠 Aquarium
+      </button>
+
+      <button class="tab" data-tab="treasure" type="button">
+        💎 Treasure
+      </button>
       <button class="tab" data-tab="achievements" type="button">🏆 Pencapaian</button>
     </nav>
 
@@ -222,6 +229,28 @@
               type="button"
             >🪙 110</button>
           </div>
+          <h3 class="equipment-heading">Aquarium Upgrades</h3>
+
+          <div class="store-item">
+            <div class="store-icon">🐠</div>
+
+            <div class="store-details">
+              <h3 id="aquariumUpgradeTitle">
+                Aquarium Expansion
+              </h3>
+
+              <p id="aquariumUpgradeDescription">
+                Tambahkan kapasitas aquarium.
+              </p>
+            </div>
+
+            <button class="buy-button"
+                    id="aquariumUpgradeButton"
+                    type="button">
+              🪙 350
+            </button>
+          </div>
+
           <div class="help-card"><strong>ℹ️ Rod progression</strong><p>Lv.1: Shore/Mid • Lv.2+: Deep • level berikutnya meningkatkan kontrol tension.</p></div>
         </div>
 
@@ -268,12 +297,12 @@
 
           <div class="exploration-summary">
             <div>
-              <strong id="areaProgress">1 / 6</strong>
+              <strong id="areaProgress">1 / 7</strong>
               <span>Locations Unlocked</span>
             </div>
 
             <div>
-              <strong id="areaFishProgress">0 / 22</strong>
+              <strong id="areaFishProgress">0 / 24</strong>
               <span>Species Discovered</span>
             </div>
           </div>
@@ -293,7 +322,7 @@
         <div class="panel hidden" data-panel="fishdex">
           <span class="eyebrow">DISCOVERY JOURNAL</span>
           <h2>Fishdex</h2>
-          <p class="muted" id="fishdexSummary">0 dari 22 spesies ditemukan.</p>
+          <p class="muted" id="fishdexSummary">0 dari 24 spesies ditemukan.</p>
           <div class="dex-progress">
             <div id="dexProgressFill"></div>
           </div>
@@ -329,6 +358,94 @@
           <div class="item-list" id="inventoryList"></div>
         </div>
 
+        <!-- PHASE 6: AQUARIUM -->
+
+        <div class="panel hidden" data-panel="aquarium">
+          <span class="eyebrow">YOUR UNDERWATER COLLECTION</span>
+
+          <h2>My Aquarium</h2>
+
+          <p class="muted">
+            Pamerkan ikan terbaikmu, tandai ikan favorit,
+            dan tingkatkan kapasitas aquarium.
+          </p>
+
+          <div class="aquarium-stats">
+            <strong id="aquariumCapacity">0 / 6 Fish</strong>
+            <span id="aquariumFavoriteCount">❤️ 0 Favorite</span>
+          </div>
+
+          <div class="aquarium-tank" id="aquariumTank">
+            <div class="aquarium-light"></div>
+            <div class="aquarium-bubbles"></div>
+
+            <div class="aquarium-plants">
+              🌿
+            </div>
+
+            <div class="aquarium-floor"></div>
+
+            <div id="aquariumFishLayer"></div>
+          </div>
+
+          <p class="tiny">
+            Ikan berenang secara otomatis. Pilih ikan
+            dari daftar untuk memberi tanda favorit,
+            memindahkannya, atau menjualnya.
+          </p>
+
+          <h3 class="equipment-heading">Aquarium Collection</h3>
+
+          <div id="aquariumFishList" class="item-list"></div>
+        </div>
+
+        <!-- PHASE 6: TREASURE -->
+
+        <div class="panel hidden" data-panel="treasure">
+          <span class="eyebrow">HIDDEN TREASURES</span>
+
+          <h2>Treasure Collection</h2>
+
+          <p class="muted">
+            Saat memancing, kamu juga bisa menemukan
+            sampah, harta berharga, dan potongan peta kuno.
+          </p>
+
+          <div class="treasure-progress">
+            <div class="treasure-progress-title">
+              <span>🗺️ Ancient Map</span>
+              <strong id="mapFragmentText">0 / 5</strong>
+            </div>
+
+            <div class="progress-track">
+              <div class="map-progress-fill"
+                   id="mapProgressFill"></div>
+            </div>
+
+            <p id="mapDescription">
+              Temukan 5 potongan peta untuk membuka
+              Moonlight Lagoon.
+            </p>
+          </div>
+
+          <div class="treasure-summary">
+            <div>
+              <strong id="treasureFoundText">0</strong>
+              <span>Treasures Found</span>
+            </div>
+
+            <div>
+              <strong id="treasureStoredText">0 / 30</strong>
+              <span>Stored Items</span>
+            </div>
+          </div>
+
+          <h3 class="equipment-heading">Treasure Inventory</h3>
+
+          <div id="treasureInventoryList"
+               class="item-list"></div>
+        </div>
+
         <div class="panel hidden" data-panel="achievements">
           <span class="eyebrow">PROGRESS & MILESTONES</span>
           <h2>Pencapaian</h2>
@@ -337,7 +454,7 @@
         </div>
       </section>
     </main>
-    <footer>Lucky Fishing • Prototype Phase 5 • Semua progres tersimpan secara lokal di browser ini.</footer>
+    <footer>Lucky Fishing • Prototype Phase 6 • Semua progres tersimpan secara lokal di browser ini.</footer>
   </div>
 
   <div class="menu-overlay" id="menuOverlay">
@@ -348,7 +465,7 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.5.0 • Offline • Autosave</small>
+      <small>v0.6.0 • Offline • Autosave</small>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

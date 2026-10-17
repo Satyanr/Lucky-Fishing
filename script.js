@@ -1,8 +1,8 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.5.0
-   PHASE 5 - LIVING WORLD
+   LUCKY FISHING v0.6.0
+   PHASE 6 - AQUARIUM & TREASURE
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
@@ -315,6 +315,39 @@ FISH.push(
   }
 );
 
+/* =========================================
+   PHASE 6 — SECRET FISH
+========================================= */
+
+FISH.push(
+  {
+    id: "eclipse",
+    name: "Eclipse Koi",
+    icon: "🌘",
+    rarity: "Legendary",
+    min: 4,
+    max: 22,
+    length: [45, 140],
+    strength: 1.08,
+    price: 2800,
+    spawn: 0.22,
+    zones: ["mid", "deep"]
+  },
+  {
+    id: "nocturne",
+    name: "Nocturne Serpent",
+    icon: "🐉",
+    rarity: "Mythic",
+    min: 12,
+    max: 90,
+    length: [110, 340],
+    strength: 1.28,
+    price: 6500,
+    spawn: 0.055,
+    zones: ["deep"]
+  }
+);
+
 const FISH_BY_ID = Object.fromEntries(
   FISH.map(fish => [fish.id, fish])
 );
@@ -580,7 +613,122 @@ const LOCATIONS = {
   }
 };
 
+/* =========================================
+   PHASE 6 — SECRET LOCATION
+========================================= */
+
+LOCATIONS.moonlight = {
+  id: "moonlight",
+  order: 7,
+  name: "Moonlight Lagoon",
+  icon: "🌙",
+  type: "🌙 Hidden Lagoon",
+  tag: "SECRET AREA",
+
+  description:
+    "Laguna tersembunyi yang ditemukan melalui " +
+    "lima potongan Ancient Map. Menyimpan ikan " +
+    "Legendary dan Mythic yang sulit ditemukan.",
+
+  cost: 0,
+  catches: 0,
+  rod: 3,
+  previous: null,
+
+  fish: [
+    "mas",
+    "golden",
+    "crystal",
+    "moon",
+    "eclipse",
+    "nocturne",
+    "astral",
+    "whisper"
+  ]
+};
+
 const LOCATION_IDS = Object.keys(LOCATIONS);
+
+/* =========================================
+   PHASE 6 — AQUARIUM CONFIG
+========================================= */
+
+const AQUARIUM_CAPACITY = {
+  1: 6,
+  2: 10,
+  3: 14,
+  4: 18
+};
+
+const AQUARIUM_COSTS = {
+  1: 350,
+  2: 950,
+  3: 2300
+};
+
+const MAX_TREASURE_STORAGE = 30;
+const MAP_REQUIRED = 5;
+
+/* =========================================
+   TREASURE DATABASE
+   weight = relative roll weight
+========================================= */
+
+const TREASURE_ITEMS = {
+  boot: {
+    id: "boot",
+    icon: "👢",
+    name: "Old Boot",
+    rarity: "Junk",
+    price: 2,
+    weight: 22
+  },
+
+  driftwood: {
+    id: "driftwood",
+    icon: "🪵",
+    name: "Driftwood",
+    rarity: "Junk",
+    price: 4,
+    weight: 19
+  },
+
+  coins: {
+    id: "coins",
+    icon: "💰",
+    name: "Coin Pouch",
+    rarity: "Uncommon",
+    price: 85,
+    weight: 20
+  },
+
+  pearl: {
+    id: "pearl",
+    icon: "🦪",
+    name: "Shimmering Pearl",
+    rarity: "Rare",
+    price: 280,
+    weight: 10
+  },
+
+  ring: {
+    id: "ring",
+    icon: "💍",
+    name: "Ancient Ring",
+    rarity: "Epic",
+    price: 850,
+    weight: 5
+  },
+
+  fragment: {
+    id: "fragment",
+    icon: "🗺️",
+    name: "Ancient Map Fragment",
+    rarity: "Special",
+    price: 0,
+    weight: 24
+  }
+};
 
 /* =========================================
    PHASE 5 — LIVING WORLD CONFIG
@@ -710,6 +858,33 @@ const FISH_ENVIRONMENT = {
   }
 };
 
+/* Moonlight Lagoon fishing behavior */
+
+FISH_ENVIRONMENT.eclipse = {
+  time: {
+    sunset: 2,
+    night: 2.5
+  },
+  weather: {
+    clear: 1.3,
+    fog: 1.8
+  }
+};
+
+FISH_ENVIRONMENT.nocturne = {
+  time: {
+    night: 3
+  },
+  weather: {
+    fog: 3
+  }
+};
+
+/* Glow Worm affinity for new species */
+
+BAITS.glow.affinity.eclipse = 2;
+BAITS.glow.affinity.nocturne = 2.2;
+
 /* =========================================
    WORLD SAVE DEFAULTS
 ========================================= */
@@ -771,8 +946,14 @@ function formatWorldTime(minute) {
 
 function freshSave() {
   return {
-    version: 5,
+    version: 6,
     world: freshWorld(),
+
+    aquariumLevel: 1,
+    aquarium: [],
+
+    treasureInventory: [],
+    mapFragments: 0,
     location: "village",
 
     unlockedLocations: ["village"],
@@ -806,7 +987,9 @@ function freshSave() {
       bestWeight: 0,
       bestLength: 0,
       shinyCatches: 0,
-      giantCatches: 0
+      giantCatches: 0,
+      treasuresFound: 0,
+      mapFragmentsFound: 0
     }
   };
 }
@@ -927,9 +1110,29 @@ function readSave() {
     const pending = raw.pendingCatch;
 
     const pendingCatch =
-      pending && pending.kind === "caught"
+      pending?.kind === "caught"
         ? normalizeCatch(pending)
-        : null;
+
+        : (
+            pending?.kind === "treasure" &&
+            Object.hasOwn(TREASURE_ITEMS, pending.treasureId) &&
+            pending.treasureId !== "fragment" &&
+            Number.isFinite(pending.price) &&
+            pending.price >= 0
+          )
+          ? {
+              kind: "treasure",
+              treasureId: pending.treasureId,
+              price: Math.floor(pending.price)
+            }
+
+          : pending?.kind === "fragment"
+            ? {
+                kind: "fragment",
+                treasureId: "fragment"
+              }
+
+            : null;
 
     const stats = Object.fromEntries(
       Object.keys(defaults.stats).map(key => [key, nonnegative(raw.stats[key])])
@@ -1037,12 +1240,74 @@ function readSave() {
       world.eventRemaining = 0;
     }
 
+    /* =========================================
+       MIGRATION v0.5 -> v0.6
+    ========================================= */
+
+    const aquariumLevel =
+      Number.isInteger(raw.aquariumLevel)
+        ? clamp(raw.aquariumLevel, 1, 4)
+        : 1;
+
+    const aquarium = Array.isArray(raw.aquarium)
+      ? raw.aquarium
+          .map(item => {
+            const fish = normalizeCatch(item);
+
+            if (!fish) return null;
+
+            return {
+              ...fish,
+              aquariumId:
+                typeof item.aquariumId === "string" &&
+                item.aquariumId.length > 0
+                  ? item.aquariumId
+                  : createAquariumId(),
+
+              favorite: item.favorite === true
+            };
+          })
+          .filter(Boolean)
+      : [];
+
+    const treasureInventory =
+      Array.isArray(raw.treasureInventory)
+        ? raw.treasureInventory
+            .filter(item =>
+              item &&
+              Object.hasOwn(TREASURE_ITEMS, item.id) &&
+              item.id !== "fragment" &&
+              Number.isFinite(item.price) &&
+              item.price >= 0
+            )
+            .map(item => ({
+              id: item.id,
+              price: Math.floor(item.price),
+              locationId:
+                Object.hasOwn(LOCATIONS, item.locationId)
+                  ? item.locationId
+                  : null
+            }))
+        : [];
+
+    const mapFragments =
+      Number.isFinite(raw.mapFragments)
+        ? clamp(Math.floor(raw.mapFragments), 0, MAP_REQUIRED)
+        : 0;
+
     return {
       ...defaults,
       ...raw,
 
-      version: 5,
+      version: 6,
       world,
+
+      aquariumLevel,
+      aquarium,
+      treasureInventory,
+      mapFragments,
+
+      // Pertahankan properti lain yang sudah ada:
       location,
       unlockedLocations,
 
@@ -1171,6 +1436,539 @@ function upgradeGear(type, costs) {
   showToast(
     `${type.toUpperCase()} meningkat ke Lv.${save[type]}!`
   );
+}
+
+/* =========================================
+   PHASE 6 — AQUARIUM ENGINE
+========================================= */
+
+let aquariumSprites = [];
+
+function createAquariumId() {
+  return (
+    Date.now().toString(36) + "-" +
+    Math.random().toString(36).slice(2, 10)
+  );
+}
+
+function getAquariumCapacity() {
+  return AQUARIUM_CAPACITY[save.aquariumLevel] || 6;
+}
+
+function isAquariumFull() {
+  return save.aquarium.length >= getAquariumCapacity();
+}
+
+function createAquariumFish(fish) {
+  return {
+    ...fish,
+    aquariumId: createAquariumId(),
+    favorite: fish.favorite === true
+  };
+}
+
+function moveFishToAquarium(index) {
+  const fish = save.inventory[index];
+
+  if (!fish) return;
+
+  if (isAquariumFull()) {
+    showToast("Aquarium penuh! Upgrade kapasitas.");
+    return;
+  }
+
+  // Remove from inventory, then add to aquarium.
+  save.inventory.splice(index, 1);
+  save.aquarium.push(createAquariumFish(fish));
+
+  writeSave();
+  renderAll();
+
+  showToast("🐠 Ikan dipindahkan ke Aquarium!");
+}
+
+function upgradeAquarium() {
+  const cost = AQUARIUM_COSTS[save.aquariumLevel];
+
+  if (!cost || save.coins < cost) {
+    showToast("Coin tidak cukup atau aquarium sudah MAX.");
+    return;
+  }
+
+  save.coins -= cost;
+  save.aquariumLevel++;
+
+  writeSave();
+  renderAll();
+
+  showToast(
+    `Aquarium Lv.${save.aquariumLevel} unlocked!`
+  );
+}
+
+/* =========================================
+   AQUARIUM ACTIONS
+========================================= */
+
+function handleAquariumAction(index, action) {
+  const item = save.aquarium[index];
+
+  if (!item) return;
+
+  if (action === "favorite") {
+    item.favorite = !item.favorite;
+  }
+
+  else if (action === "remove") {
+    if (save.inventory.length >= MAX_INVENTORY) {
+      showToast("Inventory penuh!");
+      return;
+    }
+
+    // Favorite only protects fish inside aquarium.
+    save.inventory.push({
+      ...item,
+      favorite: false
+    });
+
+    save.aquarium.splice(index, 1);
+  }
+
+  else if (action === "sell") {
+    if (item.favorite) {
+      showToast("Lepas Favorite sebelum menjual ikan.");
+      return;
+    }
+
+    save.coins += item.price;
+    save.stats.earned += item.price;
+
+    save.aquarium.splice(index, 1);
+
+    showToast(`Ikan terjual: +${fmt(item.price)} coin`);
+  }
+
+  else {
+    return;
+  }
+
+  writeSave();
+  renderAll();
+}
+
+/* =========================================
+   AQUARIUM RENDERING
+========================================= */
+
+function renderAquarium() {
+  const layer = $("aquariumFishLayer");
+  const list = $("aquariumFishList");
+
+  layer.replaceChildren();
+  list.replaceChildren();
+
+  aquariumSprites = [];
+
+  const capacity = getAquariumCapacity();
+
+  const favorites = save.aquarium.filter(
+    fish => fish.favorite
+  ).length;
+
+  $("aquariumCapacity").textContent =
+    `${save.aquarium.length} / ${capacity} Fish`;
+
+  $("aquariumFavoriteCount").textContent =
+    `❤️ ${favorites} Favorite`;
+
+  if (save.aquarium.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+
+    empty.textContent =
+      "Belum ada ikan. Simpan hasil tangkapan " +
+      "dari Inventory atau Catch Result.";
+
+    list.append(empty);
+    return;
+  }
+
+  save.aquarium.forEach((item, index) => {
+    const fish = FISH_BY_ID[item.id];
+
+    if (!fish) return;
+
+    /* Aquarium sprite */
+
+    const sprite = document.createElement("span");
+
+    sprite.className = [
+      "aquarium-fish",
+      item.shiny ? "shiny-fish" : "",
+      item.favorite ? "favorite-fish" : ""
+    ].filter(Boolean).join(" ");
+
+    sprite.textContent = fish.icon;
+    sprite.title = fish.name;
+    sprite.setAttribute("aria-hidden", "true");
+
+    layer.append(sprite);
+
+    aquariumSprites.push({
+      node: sprite,
+
+      x: rand(12, 88),
+      y: rand(18, 76),
+
+      vx: rand(5, 13) *
+        (Math.random() < 0.5 ? -1 : 1),
+
+      wave: rand(0, Math.PI * 2)
+    });
+
+    /* Collection list item */
+
+    const row = document.createElement("div");
+    row.className =
+      "list-item aquarium-fish-list-item";
+
+    const icon = document.createElement("span");
+    icon.className = "list-item-icon";
+    icon.textContent = fish.icon;
+
+    const body = document.createElement("div");
+    body.className = "list-item-body";
+
+    const name = document.createElement("strong");
+    name.textContent =
+      `${fish.name}${item.favorite ? " ❤️" : ""}` +
+      `${item.shiny ? " ✨" : ""}`;
+
+    const details = document.createElement("small");
+    details.textContent =
+      `${item.weight.toFixed(2)} kg • ` +
+      `${fish.rarity} • 🪙 ${fmt(item.price)}`;
+
+    body.append(name, details);
+
+    const actions = document.createElement("div");
+    actions.className = "aquarium-fish-actions";
+
+    const buttons = [
+      {
+        action: "favorite",
+        label: item.favorite ? "❤️ Favorite" : "♡ Favorite"
+      },
+      {
+        action: "remove",
+        label: "↩ Inventory"
+      },
+      {
+        action: "sell",
+        label: `🪙 Jual ${fmt(item.price)}`
+      }
+    ];
+
+    buttons.forEach(data => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.textContent = data.label;
+      button.dataset.action = data.action;
+      button.dataset.index = index;
+
+      if (data.action === "favorite" && item.favorite) {
+        button.classList.add("favorite-on");
+      }
+
+      if (data.action === "sell") {
+        button.classList.add("sell-fish");
+        button.disabled = item.favorite;
+      }
+
+      actions.append(button);
+    });
+
+    row.append(icon, body, actions);
+    list.append(row);
+  });
+}
+
+/* =========================================
+   AQUARIUM ANIMATION
+========================================= */
+
+function animateAquarium(dt, now) {
+  if (document.hidden) return;
+
+  const panel = document.querySelector(
+    '[data-panel="aquarium"]'
+  );
+
+  if (!panel || panel.classList.contains("hidden")) {
+    return;
+  }
+
+  const reducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+
+  aquariumSprites.forEach(sprite => {
+    if (!reducedMotion) {
+      sprite.x += sprite.vx * dt;
+
+      if (sprite.x > 91) {
+        sprite.x = 91;
+        sprite.vx = -Math.abs(sprite.vx);
+      }
+
+      if (sprite.x < 9) {
+        sprite.x = 9;
+        sprite.vx = Math.abs(sprite.vx);
+      }
+    }
+
+    const bob = reducedMotion
+      ? 0
+      : Math.sin(now * 0.0016 + sprite.wave) * 2.5;
+
+    sprite.node.style.left = `${sprite.x}%`;
+    sprite.node.style.top = `${sprite.y + bob}%`;
+
+    sprite.node.style.transform =
+      `translate(-50%, -50%) scaleX(${
+        sprite.vx >= 0 ? 1 : -1
+      })`;
+  });
+}
+
+/* =========================================
+   PHASE 6 — TREASURE ENGINE
+========================================= */
+
+function getTreasureChance() {
+  let chance = 0.14;
+
+  if (round.zone === "deep") {
+    chance += 0.04;
+  }
+
+  if (round.perfect) {
+    chance += 0.02;
+  }
+
+  return chance;
+}
+
+function rollTreasure() {
+  const pool = Object.values(TREASURE_ITEMS)
+    .filter(item => {
+      // Stop dropping fragments after map completion.
+      if (
+        item.id === "fragment" &&
+        save.mapFragments >= MAP_REQUIRED
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+  const total = pool.reduce(
+    (sum, item) => sum + item.weight,
+    0
+  );
+
+  let roll = Math.random() * total;
+
+  for (const item of pool) {
+    roll -= item.weight;
+
+    if (roll < 0) return item;
+  }
+
+  return pool[pool.length - 1];
+}
+
+function generateTreasureResult() {
+  const item = rollTreasure();
+
+  if (item.id === "fragment") {
+    // Claim immediately, exactly once.
+    save.mapFragments = Math.min(
+      MAP_REQUIRED,
+      save.mapFragments + 1
+    );
+
+    save.stats.mapFragmentsFound++;
+
+    return {
+      kind: "fragment",
+      treasureId: "fragment"
+    };
+  }
+
+  const price = Math.max(
+    1,
+    Math.round(item.price * rand(0.85, 1.15))
+  );
+
+  return {
+    kind: "treasure",
+    treasureId: item.id,
+    price
+  };
+}
+
+/* =========================================
+   TREASURE RESULT ACTIONS
+========================================= */
+
+function handleTreasureResult(action) {
+  if (
+    phase !== "result" ||
+    result?.kind !== "treasure"
+  ) {
+    return;
+  }
+
+  const item = TREASURE_ITEMS[result.treasureId];
+
+  if (!item || item.id === "fragment") return;
+
+  if (action === "store") {
+    if (
+      save.treasureInventory.length >=
+      MAX_TREASURE_STORAGE
+    ) {
+      showToast("Treasure Inventory penuh!");
+      return;
+    }
+
+    save.treasureInventory.push({
+      id: item.id,
+      price: result.price,
+      locationId: save.location
+    });
+
+    showToast(`${item.name} disimpan!`);
+  }
+
+  else if (action === "sell") {
+    save.coins += result.price;
+    save.stats.earned += result.price;
+
+    showToast(`+${fmt(result.price)} coins`);
+  }
+
+  else {
+    return;
+  }
+
+  save.pendingCatch = null;
+
+  writeSave();
+  finishResult();
+}
+
+function acknowledgeFragment() {
+  if (phase !== "result" || result?.kind !== "fragment") {
+    return;
+  }
+
+  save.pendingCatch = null;
+
+  writeSave();
+  finishResult();
+}
+
+/* =========================================
+   TREASURE INVENTORY UI
+========================================= */
+
+function renderTreasure() {
+  const list = $("treasureInventoryList");
+
+  list.replaceChildren();
+
+  $("mapFragmentText").textContent =
+    `${save.mapFragments} / ${MAP_REQUIRED}`;
+
+  $("mapProgressFill").style.width =
+    `${save.mapFragments / MAP_REQUIRED * 100}%`;
+
+  const mapComplete =
+    save.mapFragments >= MAP_REQUIRED;
+
+  $("mapDescription").textContent = mapComplete
+    ? "🗺️ Ancient Map lengkap! Buka menu Locations " +
+      "untuk mengakses Moonlight Lagoon."
+    : `Kumpulkan ${
+        MAP_REQUIRED - save.mapFragments
+      } fragment lagi untuk menemukan Moonlight Lagoon.`;
+
+  $("treasureFoundText").textContent =
+    fmt(save.stats.treasuresFound);
+
+  $("treasureStoredText").textContent =
+    `${save.treasureInventory.length} / ${MAX_TREASURE_STORAGE}`;
+
+  if (!save.treasureInventory.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+
+    empty.textContent =
+      "Belum ada treasure tersimpan.";
+
+    list.append(empty);
+    return;
+  }
+
+  save.treasureInventory.forEach((owned, index) => {
+    const item = TREASURE_ITEMS[owned.id];
+
+    if (!item) return;
+
+    const row = document.createElement("div");
+    row.className = "list-item";
+
+    const icon = document.createElement("span");
+    icon.className = "list-item-icon";
+    icon.textContent = item.icon;
+
+    const body = document.createElement("div");
+    body.className = "list-item-body";
+
+    const title = document.createElement("strong");
+    title.textContent = item.name;
+
+    const description = document.createElement("small");
+    description.textContent =
+      `${item.rarity} • Value: 🪙 ${fmt(owned.price)}`;
+
+    body.append(title, description);
+
+    const button = document.createElement("button");
+    button.type = "button";
+
+    button.textContent =
+      `Jual 🪙 ${fmt(owned.price)}`;
+
+    button.addEventListener("click", () => {
+      save.coins += owned.price;
+      save.stats.earned += owned.price;
+
+      save.treasureInventory.splice(index, 1);
+
+      writeSave();
+      renderAll();
+
+      showToast(`${item.name} terjual!`);
+    });
+
+    row.append(icon, body, button);
+    list.append(row);
+  });
 }
 
 /* =========================================
@@ -1481,6 +2279,18 @@ function getLocationProgress(id) {
 function getMissingRequirements(location) {
   const missing = [];
 
+  /* Secret location map requirement */
+
+  if (
+    location.id === "moonlight" &&
+    save.mapFragments < MAP_REQUIRED
+  ) {
+    missing.push(
+      `Perlu ${MAP_REQUIRED} Ancient Map Fragments ` +
+      `(${save.mapFragments}/${MAP_REQUIRED})`
+    );
+  }
+
   if (
     location.previous &&
     !isLocationUnlocked(location.previous)
@@ -1758,6 +2568,25 @@ function availableFish(zone) {
         (
           conditions.weather !== "storm" ||
           conditions.time !== "night"
+        )
+      ) {
+        return false;
+      }
+
+      /* Moonlight-exclusive fish conditions */
+
+      if (
+        fish.id === "eclipse" &&
+        !["sunset", "night"].includes(conditions.time)
+      ) {
+        return false;
+      }
+
+      if (
+        fish.id === "nocturne" &&
+        (
+          conditions.time !== "night" ||
+          conditions.weather !== "fog"
         )
       ) {
         return false;
@@ -2069,6 +2898,13 @@ function castLine() {
       return;
     }
 
+    /* PHASE 6 — Treasure roll */
+
+    if (Math.random() < getTreasureChance()) {
+      endRound("treasure");
+      return;
+    }
+
     round.fish = pickFish(round.zone, round.perfect);
 
     if (!round.fish) {
@@ -2143,7 +2979,6 @@ function endRound(kind) {
 
     registerCatch(result);
 
-    // Preserve the unclaimed catch on page reload.
     save.pendingCatch = result;
 
     if (result.shiny) {
@@ -2151,7 +2986,28 @@ function endRound(kind) {
     } else if (result.size === "Giant") {
       showToast("🏆 GIANT FISH!");
     }
-  } else {
+  }
+
+  else if (kind === "treasure") {
+    result = generateTreasureResult();
+
+    save.stats.treasuresFound++;
+
+    // Persist fragment claim or unclaimed treasure.
+    save.pendingCatch = result;
+
+    if (result.kind === "fragment") {
+      if (save.mapFragments >= MAP_REQUIRED) {
+        showToast("🗺️ Ancient Map lengkap!");
+      } else {
+        showToast("🗺️ Map Fragment ditemukan!");
+      }
+    } else {
+      showToast("💎 Treasure ditemukan!");
+    }
+  }
+
+  else {
     if (kind === "escape") {
       save.stats.escapes++;
     }
@@ -2184,19 +3040,37 @@ function handleResult(action) {
 
   if (action === "keep") {
     if (save.inventory.length >= MAX_INVENTORY) {
-      showToast(`Inventory penuh (${MAX_INVENTORY} ikan).`);
+      showToast("Inventory penuh!");
       return;
     }
 
     save.inventory.push({ ...result });
-
     showToast("Ikan disimpan ke Inventory!");
-  } else if (action === "sell") {
+  }
+
+  else if (action === "aquarium") {
+    if (isAquariumFull()) {
+      showToast("Aquarium penuh!");
+      return;
+    }
+
+    save.aquarium.push(
+      createAquariumFish(result)
+    );
+
+    showToast("🐠 Ikan dipindahkan ke Aquarium!");
+  }
+
+  else if (action === "sell") {
     save.coins += result.price;
     save.stats.earned += result.price;
 
-    showToast(`Terjual! +${fmt(result.price)} coin`);
-  } else {
+    showToast(
+      `Terjual! +${fmt(result.price)} coin`
+    );
+  }
+
+  else {
     return;
   }
 
@@ -2372,6 +3246,57 @@ function renderResult() {
 
   $("resultIcon").classList.remove("shiny-glow");
 
+  /* =========================================
+     PHASE 6 — TREASURE RESULT UI
+  ========================================= */
+
+  if (
+    result.kind === "treasure" ||
+    result.kind === "fragment"
+  ) {
+    const item = TREASURE_ITEMS[result.treasureId];
+
+    if (!item) return;
+
+    $("resultIcon").textContent = item.icon;
+
+    $("resultRarity").className = "rarity";
+
+    $("resultRarity").textContent =
+      item.rarity.toUpperCase();
+
+    $("resultTitle").textContent = item.name;
+
+    if (result.kind === "fragment") {
+      $("resultDescription").textContent =
+        `Ancient Map ${save.mapFragments}/${MAP_REQUIRED}. ` +
+        (save.mapFragments >= MAP_REQUIRED
+          ? "Moonlight Lagoon dapat dibuka!"
+          : "Kumpulkan semua potongan peta.");
+
+      addResultButton(
+        "🗺️ Lanjut",
+        acknowledgeFragment
+      );
+    } else {
+      $("resultDescription").textContent =
+        `Kamu menemukan ${item.name}! ` +
+        `Nilai jual: 🪙 ${fmt(result.price)}`;
+
+      addResultButton(
+        "🪙 Jual",
+        () => handleTreasureResult("sell")
+      );
+
+      addResultButton(
+        "🎒 Simpan",
+        () => handleTreasureResult("store")
+      );
+    }
+
+    return;
+  }
+
   if (result.kind !== "caught") {
     $("resultIcon").textContent =
       result.kind === "empty" ? "🌊" : "💨";
@@ -2477,6 +3402,10 @@ function renderResult() {
 
   addResultButton("🪙 Jual", () => handleResult("sell"));
   addResultButton("🎒 Simpan", () => handleResult("keep"));
+  addResultButton(
+    "🐠 Aquarium",
+    () => handleResult("aquarium")
+  );
 }
 
 /* =========================================
@@ -2583,6 +3512,31 @@ function renderShop() {
     $(item.buttonId).disabled =
       !cost || save.coins < cost;
   });
+
+  /* PHASE 6 — Aquarium upgrade */
+
+  const aquariumCost =
+    AQUARIUM_COSTS[save.aquariumLevel];
+
+  const currentCapacity = getAquariumCapacity();
+
+  $("aquariumUpgradeTitle").textContent =
+    save.aquariumLevel >= 4
+      ? "Aquarium MAX LEVEL"
+      : `Aquarium Lv.${save.aquariumLevel} → ` +
+        `Lv.${save.aquariumLevel + 1}`;
+
+  $("aquariumUpgradeDescription").textContent =
+    `${currentCapacity} fish capacity` +
+    (aquariumCost ? " • +4 slots" : " • Maximum");
+
+  $("aquariumUpgradeButton").textContent =
+    aquariumCost
+      ? `🪙 ${fmt(aquariumCost)}`
+      : "MAX LEVEL";
+
+  $("aquariumUpgradeButton").disabled =
+    !aquariumCost || save.coins < aquariumCost;
 }
 
 /* =========================================
@@ -2866,7 +3820,23 @@ function renderInventory() {
       showToast("Ikan berhasil dijual!");
     });
 
-    row.append(icon, body, button);
+    const aquariumButton = document.createElement("button");
+
+    aquariumButton.type = "button";
+    aquariumButton.textContent = "🐠 Aquarium";
+    aquariumButton.disabled = isAquariumFull();
+
+    aquariumButton.addEventListener("click", () => {
+      moveFishToAquarium(index);
+    });
+
+    row.append(
+      icon,
+      body,
+      aquariumButton,
+      button
+    );
+
     list.append(row);
   });
 }
@@ -2937,6 +3907,36 @@ function renderAchievements() {
       isLocationUnlocked("ocean")
     ],
     [
+      "🐠",
+      "Aquarium Keeper",
+      "Simpan ikan pertama di aquarium",
+      save.aquarium.length >= 1
+    ],
+    [
+      "❤️",
+      "Fish Lover",
+      "Punya 3 ikan favorite di aquarium",
+      save.aquarium.filter(fish => fish.favorite).length >= 3
+    ],
+    [
+      "💎",
+      "Treasure Hunter",
+      "Temukan 10 treasure",
+      save.stats.treasuresFound >= 10
+    ],
+    [
+      "🗺️",
+      "Ancient Cartographer",
+      "Lengkapi Ancient Map",
+      save.mapFragments >= MAP_REQUIRED
+    ],
+    [
+      "🌙",
+      "Secret Explorer",
+      "Buka Moonlight Lagoon",
+      isLocationUnlocked("moonlight")
+    ],
+    [
       "📖", "Professor Fish", "Lengkapi Fishdex",
       FISH.every(fish => Boolean(save.fishdex[fish.id]))
     ]
@@ -2964,7 +3964,8 @@ function renderAchievements() {
 ========================================= */
 
 function renderAll() {
-  const activeBait = BAITS[save.selectedBait] || BAITS.worm;
+  const activeBait =
+    BAITS[save.selectedBait] || BAITS.worm;
 
   $("coinsText").textContent = fmt(save.coins);
 
@@ -2973,22 +3974,36 @@ function renderAll() {
   $("baitText").textContent =
     fmt(getBaitCount(activeBait.id));
 
-  $("rodText").textContent = `Lv.${save.rod}`;
+  $("rodText").textContent =
+    `Lv.${save.rod}`;
 
   $("keptText").textContent =
     fmt(save.inventory.length);
 
-  // Location systems
+  /* Existing world systems */
+
   renderLocationScene();
   renderWorld();
   renderLocations();
 
-  // Existing systems
+  /* Existing gameplay systems */
+
   renderFishing();
   renderShop();
   renderEquipment();
+
+  /* Collection */
+
   renderFishdex();
   renderInventory();
+
+  /* Phase 6 */
+
+  renderAquarium();
+  renderTreasure();
+
+  /* Progress */
+
   renderAchievements();
 }
 
@@ -3110,6 +4125,7 @@ function frame(now) {
     }
   }
 
+  animateAquarium(dt, now);
   requestAnimationFrame(frame);
 }
 
@@ -3289,6 +4305,35 @@ $("baitEquipmentList").addEventListener(
     renderAll();
 
     showToast(`${BAITS[id].name} berhasil dipasang!`);
+  }
+);
+
+/* =========================================
+   PHASE 6 — AQUARIUM EVENTS
+========================================= */
+
+$("aquariumUpgradeButton").addEventListener(
+  "click",
+  upgradeAquarium
+);
+
+$("aquariumFishList").addEventListener(
+  "click",
+  event => {
+    const button = event.target.closest(
+      "button[data-action][data-index]"
+    );
+
+    if (!button) return;
+
+    const index = Number(button.dataset.index);
+    const action = button.dataset.action;
+
+    if (!Number.isInteger(index) || index < 0) {
+      return;
+    }
+
+    handleAquariumAction(index, action);
   }
 );
 
