@@ -107,7 +107,6 @@ bonus spesies masing-masing.
 - Sound Effects, Volume, Reduce Motion, dan Low Effects.
 - Menu HP satu baris yang bisa digeser horizontal.
 - Pemandangan memakai proporsi ilustrasi asli.
-- Developer Mode sudah dihapus.
 
 7. SAVE, BACKUP, DAN PEMINDAHAN PROGRES
 --------------------------------------
