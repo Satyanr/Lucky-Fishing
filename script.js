@@ -1,8 +1,8 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.8.1
-   PHASE 8 - POLISH & RELEASE PREPARATION
+   LUCKY FISHING v1.0.0
+   FINAL RELEASE
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
