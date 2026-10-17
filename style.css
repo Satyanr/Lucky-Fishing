@@ -1896,3 +1896,20 @@ body.reduce-motion .aquarium-fish *,body.low-effects .aquarium-fish *{animation:
   #activeBaitHint{order:3}
   [data-panel="fishing"]>.help-card{order:4}
 }
+
+/* Keep the illustrated scene in its native 800:480 proportions. */
+.lake-scene{height:auto;aspect-ratio:5/3}
+.fishing-action-row{display:flex;gap:8px;align-items:stretch;margin-top:8px}
+.fishing-action-row #actionButton{flex:1;min-width:0;margin-top:0}
+.auto-fish-button{width:auto;min-width:125px;font-size:12px;padding:12px 10px}
+.auto-fish-button[aria-pressed="true"]{background:#355f4d;border-color:#96dba7;color:#c9ffd1}
+.auto-fish-status{font-size:10px;color:var(--muted);line-height:1.5;margin:7px 0 4px}
+@media(max-width:600px){
+  .lake-scene{height:auto;aspect-ratio:5/3}
+  .fishing-action-row{order:1;margin-top:5px}
+  .fishing-action-row #actionButton{order:initial;font-size:12px}
+  .auto-fish-button{min-width:112px;font-size:11px}
+  .auto-fish-status{order:2;margin:6px 0}
+  [data-panel="fishing"]>.eyebrow{display:none}
+  [data-panel="fishing"] h2{margin-top:0}
+}

@@ -1537,6 +1537,7 @@ try {
 function markSaveConflict() {
   if (externalSaveConflict) return;
   externalSaveConflict = true;
+  stopAutoFishing("Auto berhenti: save berubah di tab lain.");
   clearTimeout(pendingTimer);
   pendingTimer = null;
   setReeling(false);
@@ -1589,6 +1590,10 @@ let hasSavedGame = Boolean(loadedSave);
 
 let phase = save.pendingCatch ? "result" : "idle";
 let result = save.pendingCatch || null;
+let autoFishing = false;
+let autoNextActionAt = 0;
+let autoObservedPhase = "idle";
+let autoFishingMessage = "Auto: ikan disimpan, sampah dijual.";
 
 let pendingTimer = null;
 let toastTimer = null;
@@ -2884,6 +2889,7 @@ function setTab(tab) {
     return;
   }
 
+  if (tab !== "fishing" && autoFishing) stopAutoFishing();
   document.body.dataset.tab = tab;
   document.querySelectorAll(".tab").forEach(button => {
     button.classList.toggle(
@@ -4132,6 +4138,72 @@ function perfectPower() {
   return Math.round(ROD_REACH[save.rod] * 0.82);
 }
 
+function renderAutoFishing() {
+  $("autoFishButton").textContent = autoFishing ? "Auto Fish: ON" : "Auto Fish: OFF";
+  $("autoFishButton").setAttribute("aria-pressed", String(autoFishing));
+  $("autoFishStatus").textContent = autoFishing
+    ? "Auto aktif / ikan disimpan / sampah dijual"
+    : autoFishingMessage;
+}
+
+function stopAutoFishing(message = "Auto berhenti. Kontrol manual aktif.") {
+  autoFishing = false;
+  autoNextActionAt = 0;
+  autoFishingMessage = message;
+  setReeling(false);
+  renderAutoFishing();
+}
+
+function updateAutoFishing(now) {
+  if (!autoFishing) return;
+  if (phase !== autoObservedPhase) {
+    autoObservedPhase = phase;
+    autoNextActionAt = now + (phase === "result" ? 1400 : phase === "idle" ? 600 : 0);
+  }
+  if (now < autoNextActionAt) return;
+  if (phase === "idle") {
+    if (save.inventory.length >= MAX_INVENTORY) {
+      stopAutoFishing("Auto berhenti: Inventory penuh. Jual atau pindahkan ikan.");
+      return;
+    }
+    if (getBaitCount(save.selectedBait) < 1) {
+      stopAutoFishing("Auto berhenti: umpan habis. Pilih umpan lain atau Tanpa Umpan.");
+      return;
+    }
+    startAiming();
+  } else if (phase === "aiming") {
+    if (Math.abs(round.power - perfectPower()) <= 5) castLine();
+  } else if (phase === "biting") {
+    hookFish();
+  } else if (phase === "battle") {
+    const shouldReel = !round.boss?.warning &&
+      (round.reel ? round.tension < 62 : round.tension < 32);
+    if (round.reel !== shouldReel) setReeling(shouldReel);
+  } else if (phase === "result" && result) {
+    if (result.kind === "caught") {
+      if (save.inventory.length >= MAX_INVENTORY) {
+        stopAutoFishing("Auto berhenti: Inventory penuh. Pilih tindakan untuk tangkapan ini.");
+      } else handleResult("keep");
+    } else if (result.kind === "treasure") {
+      handleTreasureResult("sell");
+    } else if (result.kind === "fragment") {
+      acknowledgeFragment();
+    } else finishResult();
+  }
+}
+
+$("autoFishButton").addEventListener("click", () => {
+  if (externalSaveConflict) return;
+  if (autoFishing) {
+    stopAutoFishing();
+    return;
+  }
+  autoFishing = true;
+  autoObservedPhase = phase;
+  autoNextActionAt = performance.now() + 500;
+  renderAutoFishing();
+});
+
 function startAiming() {
   const bait = BAITS[save.selectedBait];
 
@@ -4420,6 +4492,7 @@ function displayZone(zone) {
 }
 
 function renderFishing() {
+  renderAutoFishing();
   $("lakeScene").dataset.phase = phase;
   const titles = {
     idle: [
@@ -5629,6 +5702,8 @@ function frame(now) {
     return;
   }
 
+  updateAutoFishing(now);
+
   if (phase === "aiming") {
     const reach = ROD_REACH[save.rod];
 
@@ -6033,6 +6108,7 @@ $("menuButton").addEventListener("click", () => {
     return;
   }
 
+  if (autoFishing) stopAutoFishing();
   $("continueButton").disabled = false;
   $("continueButton").textContent = "\u25B6 Continue";
   worldLastTick = performance.now();
@@ -6067,6 +6143,7 @@ $("newGameButton").addEventListener("click", () => {
     return;
   }
 
+  stopAutoFishing();
   clearTimeout(pendingTimer);
 
   const previousSettings = {

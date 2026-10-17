@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#102d37" />
   <title>Lucky Fishing — Village Pond</title>
-  <link rel="stylesheet" href="style.css?v=20261017-continue1" />
-  <script src="script.js?v=20261017-continue1" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261017-autofish1" />
+  <script src="script.js?v=20261017-autofish1" defer></script>
 </head>
 <body data-tab="fishing">
   <div class="app">
@@ -78,7 +78,7 @@
           <div class="world-lighting" id="worldLighting"></div>
           <div class="weather-effects" id="weatherEffects"></div>
           <div class="world-stars" id="worldStars"></div>
-          <svg class="fishing-landscape" viewBox="0 0 800 480" preserveAspectRatio="none" aria-hidden="true">
+          <svg class="fishing-landscape" viewBox="0 0 800 480" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
             <defs>
               <linearGradient id="lakeDepth" x2="0" y2="1"><stop stop-color="var(--water-top)"/><stop offset="1" stop-color="var(--water-bottom)"/></linearGradient>
               <linearGradient id="hillShade" x2="0" y2="1"><stop stop-color="var(--hill-light)"/><stop offset="1" stop-color="var(--hill-dark)"/></linearGradient>
@@ -301,7 +301,11 @@
             🪱 Equipped: Worm
           </div>
 
+          <div class="fishing-action-row">
           <button class="primary-button" id="actionButton" type="button">🎯 Mulai Casting</button>
+            <button class="secondary-button auto-fish-button" id="autoFishButton" type="button" aria-pressed="false">Auto Fish: OFF</button>
+          </div>
+          <p id="autoFishStatus" class="auto-fish-status" role="status" aria-live="polite">Auto: ikan disimpan, sampah dijual.</p>
           <div class="help-card">
             <strong>💡 Cara bermain</strong>
             <p>Atur power → tunggu gigitan → kait tepat waktu → tahan/lepas reel sampai jarak ikan 0 m. Jaga tension agar tidak mencapai 100%.</p>
