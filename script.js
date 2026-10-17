@@ -6034,15 +6034,28 @@ $("menuButton").addEventListener("click", () => {
   }
 
   $("continueButton").disabled = false;
+  $("continueButton").textContent = "\u25B6 Continue";
   worldLastTick = performance.now();
   $("menuOverlay").classList.remove("hidden");
 });
 
-$("continueButton").addEventListener("click", () => {
+function continueGame() {
+  if (externalSaveConflict) return;
+  // A direct tap is an explicit return to the game, even when a mobile
+  // browser has not delivered its window focus event yet.
+  if (!document.hidden) resumeFishingAfterVisibility();
   worldLastTick = performance.now();
+  lastFrame = worldLastTick;
   $("menuOverlay").classList.add("hidden");
   setTab("fishing");
-});
+  if (window.matchMedia("(max-width: 600px)").matches) {
+    window.scrollTo({top: 0, behavior: "instant"});
+  }
+  // First-time players can enter immediately; existing saves are retained.
+  if (!hasSavedGame && lastKnownStoredSave === null) writeSave();
+}
+
+$("continueButton").addEventListener("click", continueGame);
 
 $("newGameButton").addEventListener("click", () => {
   if (
@@ -6095,7 +6108,8 @@ $("newGameButton").addEventListener("click", () => {
    INITIALIZATION
 ========================================= */
 
-$("continueButton").disabled = !hasSavedGame;
+$("continueButton").disabled = false;
+$("continueButton").textContent = hasSavedGame ? "\u25B6 Continue" : "\u25B6 Mulai Bermain";
 
 /* Populate location options in Fishdex */
 
