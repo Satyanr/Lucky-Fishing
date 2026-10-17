@@ -2884,6 +2884,7 @@ function setTab(tab) {
     return;
   }
 
+  document.body.dataset.tab = tab;
   document.querySelectorAll(".tab").forEach(button => {
     button.classList.toggle(
       "active",
@@ -2897,6 +2898,16 @@ function setTab(tab) {
       panel.dataset.panel !== tab
     );
   });
+
+  const activeTab = document.querySelector(".tab.active");
+  const navigation = document.querySelector(".tabs");
+  if (activeTab && navigation.scrollWidth > navigation.clientWidth) {
+    navigation.scrollTo({
+      left: activeTab.offsetLeft - navigation.offsetLeft -
+        (navigation.clientWidth - activeTab.offsetWidth) / 2,
+      behavior: shouldReduceMotion() ? "instant" : "smooth"
+    });
+  }
 
   renderAll();
 }
@@ -4122,7 +4133,6 @@ function perfectPower() {
 }
 
 function startAiming() {
-  developerForceShiny = false;
   const bait = BAITS[save.selectedBait];
 
   if (!bait || getBaitCount(save.selectedBait) < 1) {
@@ -4256,11 +4266,6 @@ function endRound(kind) {
 
   if (kind === "caught") {
     result = generateCatch(round.fish);
-    if (developerSession && developerForceShiny && !result.shiny) {
-      result.shiny = true;
-      result.price = Math.max(1, Math.round(result.price * 1.5));
-    }
-    developerForceShiny = false;
 
     registerCatch(result);
 
@@ -5836,157 +5841,6 @@ $("dexAreaFilter").addEventListener(
   renderFishdex
 );
 
-
-// Developer controls are session-only; save schema remains unchanged.
-const DEV_SESSION_KEY = "lucky-fishing-developer-session";
-let developerSession = null;
-let developerForceShiny = false;
-try {
-  const stored = JSON.parse(sessionStorage.getItem(DEV_SESSION_KEY));
-  if (stored && readSave(stored.checkpoint)) developerSession = stored;
-} catch { /* Developer tools stay off if session storage is unavailable. */ }
-
-function renderDeveloperTools() {
-  const active = Boolean(developerSession);
-  $("developerEnabled").checked = active;
-  $("developerTools").classList.toggle("hidden", !active);
-  $("developerBadge").classList.toggle("hidden", !active);
-}
-
-function resetDeveloperRound() {
-  clearTimeout(pendingTimer);
-  pendingTimer = null;
-  waitingRemainingMs = 0;
-  waitingStartedAt = 0;
-  developerForceShiny = false;
-  setReeling(false);
-  result = null;
-  save.pendingCatch = null;
-  phase = "idle";
-  round.fish = null;
-  round.boss = null;
-  round.conditions = null;
-  round.perfect = false;
-  round.zone = "shore";
-}
-
-function developerAction(action) {
-  if (!developerSession || externalSaveConflict || !canWriteSave()) return;
-  if (["resources", "gear", "locations", "samples", "world", "encounter"].includes(action) && phase !== "idle") {
-    showToast("Batalkan round atau selesaikan hasil memancing dahulu.");
-    return;
-  }
-  if (action === "resources") {
-    save.coins += 100000;
-    save.bait += 100;
-    Object.keys(save.baitStock).forEach(id => save.baitStock[id] += 100);
-  } else if (action === "gear") {
-    save.rod = save.reel = save.hook = save.aquariumLevel = 4;
-  } else if (action === "locations") {
-    save.unlockedLocations = [...LOCATION_IDS];
-    save.mapFragments = MAP_REQUIRED;
-  } else if (action === "samples") {
-    const free = MAX_INVENTORY - save.inventory.length;
-    const missing = FISH.filter(fish => !save.inventory.some(item => item.id === fish.id));
-    missing.slice(0, free).forEach(fish => {
-      const catchData = generateCatch(fish);
-      save.inventory.push(catchData);
-      registerCatch(catchData);
-    });
-    if (missing.length > free) showToast("Inventory penuh; sebagian sampel belum ditambahkan.");
-  } else if (action === "world") {
-    const time = $("developerTime").value;
-    if (!/^\d{2}:\d{2}$/.test(time)) return showToast("Pilih waktu yang valid.");
-    const [hours, minutes] = time.split(":").map(Number);
-    save.world.minute = hours * 60 + minutes;
-    save.world.weather = $("developerWeather").value;
-    save.world.weatherRemaining = WEATHER_DURATION;
-    save.world.event = $("developerEvent").value || null;
-    save.world.eventRemaining = save.world.event ? 120 : 0;
-    worldLastTick = performance.now();
-  } else if (action === "encounter") {
-    const fish = FISH_BY_ID[$("developerFish").value];
-    if (!fish) return;
-    round.fish = fish;
-    round.bait = save.selectedBait;
-    round.zone = "deep";
-    round.perfect = true;
-    round.conditions = {...getWorldConditions(), day: save.world.day, minute: save.world.minute};
-    round.deadline = performance.now() + 10000;
-    developerForceShiny = $("developerShiny").checked;
-    phase = "biting";
-    hookFish();
-    setTab("fishing");
-  } else if (action === "caught") {
-    if (phase !== "battle" || !round.fish) return showToast("Mulai battle dahulu.");
-    if (round.boss) round.boss.stamina = 0;
-    endRound("caught");
-    setTab("fishing");
-  } else if (action === "cancel") {
-    if (save.pendingCatch) return showToast("Simpan atau jual hasil tangkapan dahulu.");
-    resetDeveloperRound();
-  } else if (action === "restore") {
-    const restored = readSave(developerSession.checkpoint);
-    if (!restored) return showToast("Checkpoint tidak valid.");
-    resetDeveloperRound();
-    save = restored;
-    worldLastTick = performance.now();
-    worldSaveAccumulator = 0;
-    try { sessionStorage.removeItem(DEV_SESSION_KEY); } catch {}
-    developerSession = null;
-    applySettings();
-  } else return;
-  writeSave();
-  renderAll();
-  renderDeveloperTools();
-  $("developerStatus").textContent = "Aksi terakhir: " + action + ". Progres tersimpan.";
-}
-
-$("developerEnabled").addEventListener("change", () => {
-  if (externalSaveConflict || !canWriteSave()) return renderDeveloperTools();
-  if ($("developerEnabled").checked) {
-    if (phase !== "idle" || save.pendingCatch) {
-      showToast("Selesaikan round sebelum mengaktifkan Developer Mode.");
-      return renderDeveloperTools();
-    }
-    const session = {checkpoint: JSON.parse(JSON.stringify(save))};
-    try {
-      sessionStorage.setItem(DEV_SESSION_KEY, JSON.stringify(session));
-      developerSession = session;
-    } catch {
-      showToast("Checkpoint gagal dibuat; Developer Mode belum aktif.");
-    }
-  } else {
-    developerForceShiny = false;
-    try { sessionStorage.removeItem(DEV_SESSION_KEY); } catch {}
-    developerSession = null;
-    $("developerStatus").textContent = "";
-    showToast("Developer Mode mati. Hasil tes tetap tersimpan.");
-  }
-  renderDeveloperTools();
-});
-
-$("developerTools").addEventListener("click", event => {
-  const button = event.target.closest("button[data-dev-action]");
-  if (button) developerAction(button.dataset.devAction);
-});
-$("developerBadge").addEventListener("click", () => {
-  setTab("settings");
-  $("developerTitle").scrollIntoView({block: "center", behavior: shouldReduceMotion() ? "instant" : "smooth"});
-});
-for (const [id, entries] of [
-  ["developerWeather", Object.entries(WEATHER_TYPES).map(([key, value]) => [key, value.name])],
-  ["developerEvent", [["", "Tidak ada"], ...Object.entries(WORLD_EVENTS).map(([key, value]) => [key, value.name])]],
-  ["developerFish", FISH.map(fish => [fish.id, fish.name + (BOSS_FISH[fish.id] ? " (BOSS)" : "")])]
-]) {
-  entries.forEach(([value, label]) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    $(id).append(option);
-  });
-}
-renderDeveloperTools();
 
 /* =========================================
    SHOP EVENTS

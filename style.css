@@ -1796,15 +1796,6 @@ body.reduce-motion .aquarium-fish *,body.low-effects .aquarium-fish *{animation:
 @media(prefers-reduced-motion:reduce){.aquarium-fish *{animation:none!important}}
 @media(max-width:480px){.fish-thumbnail{flex-basis:70px;width:70px;height:58px}.fish-thumbnail .fish-portrait{width:68px}.inventory-fish-row{grid-template-columns:70px minmax(0,1fr)}}
 
-/* Developer session controls */
-.developer-section{margin:24px 0;padding:14px;border:1px dashed #baaa75;border-radius:14px;background:#353c332b}
-.developer-section .setting-row{margin-top:0}
-.developer-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
-.developer-section button{padding:10px;border:1px solid #7a8269;border-radius:9px;background:#3a514c;color:#f5edce;font-size:11px;min-height:40px}
-.developer-field{display:grid;gap:6px;font-size:12px;margin:13px 0}
-.developer-field select,.developer-field input{width:100%;min-width:0;border:1px solid #4b7276;background:#173a43;border-radius:8px;padding:10px;color:var(--text);font:inherit}
-.developer-check{display:flex;align-items:center;gap:8px;font-size:12px;margin:12px 0}
-#developerBadge{color:#f7d98e;border-color:#a08d5e;font-weight:900;letter-spacing:1px}
 
 /* Illustrated discovery journal */
 #fishdexList{max-height:640px;gap:14px;padding-right:4px}
@@ -1857,3 +1848,51 @@ body.reduce-motion .aquarium-fish *,body.low-effects .aquarium-fish *{animation:
 
 .fishing-bait-picker{display:grid;gap:6px;font-size:11px;color:var(--muted);margin:16px 0 10px}
 .fishing-bait-picker select{width:100%;min-width:0;padding:11px 12px;border:1px solid #4b7477;border-radius:10px;background:#163b44;color:var(--text);font:inherit;font-size:13px}
+
+/* Compact phone layout: one navigation row and controls within easy reach. */
+@media(max-width:600px){
+  .app{margin:10px auto;width:calc(100% - 20px)}
+  .topbar{gap:8px}
+  .brand{gap:8px}.brand-icon{width:34px;height:34px;border-radius:10px;font-size:21px}
+  .brand h1{font-size:18px}.brand span{font-size:10px}
+  .header-right{width:100%;gap:5px;flex-wrap:nowrap}
+  .header-right .resource{min-width:0;gap:4px;padding:6px 8px;font-size:11px;flex:1;justify-content:center}
+  .header-right .resource strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .header-right .small-button{padding:7px 10px;white-space:nowrap;min-height:36px;font-size:11px}
+  .tabs{position:sticky;top:0;z-index:20;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;gap:5px;padding:5px 0 7px;margin:9px 0 10px;background:#102c34f5;scrollbar-width:thin;scrollbar-color:#507f77 transparent}
+  .tab{flex:0 0 auto;white-space:nowrap;font-size:11px;padding:10px 12px;min-height:40px}
+  .game-grid{gap:10px}
+  body:not([data-tab="fishing"]) .location-card{display:none}
+  .location-card,.control-card{border-radius:16px}
+  .location-header{padding:10px 12px;gap:5px;flex-wrap:nowrap;align-items:center}
+  .location-header .eyebrow{font-size:7px;letter-spacing:1px}
+  .location-header h2{font-size:17px;margin-top:3px}
+  .world-status{margin:0;gap:4px;flex-direction:column;align-items:flex-end;flex-shrink:0}
+  .world-clock,.weather-pill{padding:3px 7px;font-size:9px}
+  .lake-scene{height:clamp(125px,23svh,185px);aspect-ratio:auto}
+  .scene-zone{font-size:9px;right:9px;bottom:9px;padding:4px 7px}
+  .scene-caption{font-size:10px;line-height:1.4;min-height:0;padding:6px 11px}
+  .world-information{display:none}
+  .location-footer{font-size:10px;padding:7px 11px;gap:5px}
+  .world-event{padding:7px 10px;font-size:10px}
+  .world-event p{font-size:10px;margin:2px 0}
+  .panel{padding:14px}
+  [data-panel="fishing"]>.eyebrow{font-size:8px;letter-spacing:1.5px}
+  [data-panel="fishing"] h2{font-size:20px;margin:4px 0}
+  [data-panel="fishing"]>.muted{font-size:12px;line-height:1.4;margin-bottom:9px}
+  .fishing-bait-picker{margin:8px 0 6px;font-size:10px;gap:4px}
+  .fishing-bait-picker select{padding:8px 10px;font-size:12px;min-height:36px}
+  .active-bait-hint{padding:6px 9px;font-size:10px;margin-bottom:9px}
+  .primary-button,.secondary-button,.reel-button{padding:12px;min-height:44px;font-size:13px}
+  [data-panel="fishing"]>.help-card{margin-top:12px;font-size:11px}
+  .cast-widget,.battle-widget,.result-widget{padding:12px;margin:10px 0}
+}
+
+@media(max-width:600px){
+  .lake-scene{height:clamp(100px,20svh,170px)}
+  [data-panel="fishing"]{display:flex;flex-direction:column}
+  #actionButton{order:1;margin-top:3px}
+  .fishing-bait-picker{order:2;margin-top:12px}
+  #activeBaitHint{order:3}
+  [data-panel="fishing"]>.help-card{order:4}
+}

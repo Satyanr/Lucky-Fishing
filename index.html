@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="style.css" />
   <script src="script.js" defer></script>
 </head>
-<body>
+<body data-tab="fishing">
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -19,7 +19,6 @@
         </div>
       </div>
       <div class="header-right">
-        <button type="button" id="developerBadge" class="small-button hidden" title="Buka Developer Mode">DEV</button>
         <div class="resource">🪙 <strong id="coinsText">100</strong></div>
         <div class="resource">
   <span id="baitIcon">🪱</span>
@@ -675,38 +674,6 @@
             </span>
             <input type="checkbox" id="settingEffects">
           </label>
-
-          <section class="developer-section" aria-labelledby="developerTitle">
-            <label class="setting-row" for="developerEnabled">
-              <span class="setting-copy"><strong id="developerTitle">Developer Mode</strong>
-              <small>Kontrol pengujian untuk sesi tab ini.</small></span>
-              <input type="checkbox" id="developerEnabled">
-            </label>
-            <div id="developerTools" class="hidden">
-              <p class="tiny">Aksi developer mengubah dan menyimpan progres. Checkpoint dibuat saat mode diaktifkan; pulihkan setelah tes. Mematikan mode menyimpan hasil tes dan menghapus checkpoint.</p>
-              <div class="developer-actions">
-                <button type="button" data-dev-action="resources">+100.000 coins &amp; umpan</button>
-                <button type="button" data-dev-action="gear">Gear &amp; aquarium MAX</button>
-                <button type="button" data-dev-action="locations">Buka semua lokasi</button>
-                <button type="button" data-dev-action="samples">Isi sampel 24 spesies</button>
-              </div>
-              <label class="developer-field">Waktu dunia
-                <input id="developerTime" type="time" value="21:00">
-              </label>
-              <label class="developer-field">Cuaca<select id="developerWeather"></select></label>
-              <label class="developer-field">World event<select id="developerEvent"></select></label>
-              <button type="button" data-dev-action="world">Terapkan kondisi dunia</button>
-              <label class="developer-field">Ikan untuk encounter<select id="developerFish"></select></label>
-              <label class="developer-check"><input type="checkbox" id="developerShiny"> Paksa hasil shiny untuk encounter ini</label>
-              <div class="developer-actions">
-                <button type="button" data-dev-action="encounter">Mulai battle ikan pilihan</button>
-                <button type="button" data-dev-action="caught">Selesaikan battle: caught</button>
-                <button type="button" data-dev-action="cancel">Batalkan round</button>
-                <button type="button" data-dev-action="restore">Pulihkan progres awal</button>
-              </div>
-              <p id="developerStatus" class="tiny" role="status" aria-live="polite"></p>
-            </div>
-          </section>
 
           <h3 class="equipment-heading">Save Management</h3>
 
