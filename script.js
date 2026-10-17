@@ -1,8 +1,8 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.4.0
-   PHASE 4 - LOCATIONS & EXPLORATION
+   LUCKY FISHING v0.5.0
+   PHASE 5 - LIVING WORLD
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
@@ -583,12 +583,196 @@ const LOCATIONS = {
 const LOCATION_IDS = Object.keys(LOCATIONS);
 
 /* =========================================
+   PHASE 5 — LIVING WORLD CONFIG
+========================================= */
+
+// 1 game day = 12 real minutes.
+// 1 real second = 2 in-game minutes.
+const GAME_MINUTES_PER_SECOND = 2;
+
+const WEATHER_DURATION = 90; // real seconds
+const EVENT_DURATION = 60;   // real seconds
+
+const WEATHER_TYPES = {
+  clear: {
+    icon: "☀️",
+    name: "Clear",
+    weight: 31
+  },
+  cloudy: {
+    icon: "☁️",
+    name: "Cloudy",
+    weight: 26
+  },
+  rain: {
+    icon: "🌧️",
+    name: "Rain",
+    weight: 22
+  },
+  storm: {
+    icon: "⛈️",
+    name: "Storm",
+    weight: 9
+  },
+  fog: {
+    icon: "🌫️",
+    name: "Fog",
+    weight: 12
+  }
+};
+
+const WORLD_EVENTS = {
+  school: {
+    icon: "🐟",
+    name: "School of Fish",
+    description: "Rare+ spawn weight ×3"
+  },
+  rainbow: {
+    icon: "🌈",
+    name: "Rainbow",
+    description: "Shiny chance ×5"
+  },
+  frenzy: {
+    icon: "⚡",
+    name: "Feeding Frenzy",
+    description: "Faster bites and fewer empty casts"
+  }
+};
+
+/*
+  Environmental modifiers are multiplicative.
+  Fish not listed here retain a multiplier of 1.
+*/
+
+const FISH_ENVIRONMENT = {
+  lele: {
+    weather: { rain: 2.5, storm: 1.5 },
+    time: { night: 2 }
+  },
+  patin: {
+    weather: { rain: 1.8 },
+    time: { night: 1.5 }
+  },
+  golden: {
+    time: { sunset: 2.2 },
+    weather: { clear: 1.4 }
+  },
+  trout: {
+    weather: { cloudy: 1.8, rain: 1.5 },
+    time: { morning: 1.5 }
+  },
+  arowana: {
+    time: { morning: 1.8, sunset: 2 },
+    weather: { fog: 1.5 }
+  },
+  crystal: {
+    weather: { fog: 2 },
+    time: { night: 1.5 }
+  },
+  moon: {
+    time: { night: 3 },
+    weather: { fog: 1.8 }
+  },
+  ancient: {
+    weather: { storm: 2 },
+    time: { night: 2 }
+  },
+  snapper: {
+    time: { morning: 1.7 }
+  },
+  parrotfish: {
+    weather: { clear: 1.8 },
+    time: { day: 1.6 }
+  },
+  tuna: {
+    weather: { clear: 1.8, storm: 1.3 },
+    time: { morning: 1.8 }
+  },
+  marlin: {
+    weather: { storm: 2.2 },
+    time: { sunset: 1.7 }
+  },
+  phantom: {
+    weather: { storm: 3 },
+    time: { night: 2 }
+  },
+  astral: {
+    time: { night: 3 },
+    weather: { fog: 2 }
+  },
+  whisper: {
+    time: { night: 4 },
+    weather: { fog: 3 }
+  },
+  leviathan: {
+    time: { night: 4 },
+    weather: { storm: 4 }
+  }
+};
+
+/* =========================================
+   WORLD SAVE DEFAULTS
+========================================= */
+
+function freshWorld() {
+  return {
+    day: 1,
+    minute: 360, // 06:00
+    weather: "clear",
+
+    weatherRemaining: WEATHER_DURATION,
+
+    event: null,
+    eventRemaining: 0,
+
+    eventCooldown: rand(120, 240)
+  };
+}
+
+function getDaypart(minute) {
+  const hour = Math.floor(minute / 60) % 24;
+
+  if (hour >= 6 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 18) return "day";
+  if (hour >= 18 && hour < 21) return "sunset";
+
+  return "night";
+}
+
+const DAYPART_LABELS = {
+  morning: "🌅 Morning",
+  day: "☀️ Day",
+  sunset: "🌇 Sunset",
+  night: "🌙 Night"
+};
+
+function getWorldConditions() {
+  return {
+    weather: save.world.weather,
+    time: getDaypart(save.world.minute),
+    event: save.world.event
+  };
+}
+
+function formatWorldTime(minute) {
+  const total = Math.floor(minute);
+  const hour = Math.floor(total / 60) % 24;
+  const min = total % 60;
+
+  return (
+    String(hour).padStart(2, "0") + ":" +
+    String(min).padStart(2, "0")
+  );
+}
+
+/* =========================================
    SAVE SYSTEM
 ========================================= */
 
 function freshSave() {
   return {
-    version: 4,
+    version: 5,
+    world: freshWorld(),
     location: "village",
 
     unlockedLocations: ["village"],
@@ -692,6 +876,33 @@ function readSave() {
       return {
         kind: "caught",
         id: item.id,
+        weather: Object.hasOwn(
+          WEATHER_TYPES,
+          item.weather
+        )
+          ? item.weather
+          : null,
+
+        timePeriod: [
+          "morning",
+          "day",
+          "sunset",
+          "night"
+        ].includes(item.timePeriod)
+          ? item.timePeriod
+          : null,
+
+        gameDay:
+          Number.isInteger(item.gameDay) && item.gameDay >= 1
+            ? item.gameDay
+            : null,
+
+        gameMinute:
+          Number.isFinite(item.gameMinute) &&
+          item.gameMinute >= 0 &&
+          item.gameMinute < 1440
+            ? item.gameMinute
+            : null,
         locationId:
           typeof item.locationId === "string" &&
           Object.hasOwn(LOCATIONS, item.locationId)
@@ -757,11 +968,81 @@ function readSave() {
         ? raw.location
         : "village";
 
+    /* =========================================
+       MIGRATION v0.4 -> v0.5
+    ========================================= */
+
+    const defaultWorld = freshWorld();
+
+    const oldWorld =
+      raw.world &&
+      typeof raw.world === "object" &&
+      !Array.isArray(raw.world)
+        ? raw.world
+        : {};
+
+    const validNumber = (value, fallback, min, max) =>
+      Number.isFinite(value)
+        ? clamp(value, min, max)
+        : fallback;
+
+    const world = {
+      day: Math.floor(
+        validNumber(oldWorld.day, 1, 1, 999999)
+      ),
+
+      minute: validNumber(
+        oldWorld.minute,
+        360,
+        0,
+        1439.999
+      ),
+
+      weather: Object.hasOwn(
+        WEATHER_TYPES,
+        oldWorld.weather
+      )
+        ? oldWorld.weather
+        : "clear",
+
+      weatherRemaining: validNumber(
+        oldWorld.weatherRemaining,
+        WEATHER_DURATION,
+        0,
+        WEATHER_DURATION
+      ),
+
+      event:
+        Object.hasOwn(WORLD_EVENTS, oldWorld.event) &&
+        oldWorld.eventRemaining > 0
+          ? oldWorld.event
+          : null,
+
+      eventRemaining: validNumber(
+        oldWorld.eventRemaining,
+        0,
+        0,
+        EVENT_DURATION
+      ),
+
+      eventCooldown: validNumber(
+        oldWorld.eventCooldown,
+        defaultWorld.eventCooldown,
+        0,
+        240
+      )
+    };
+
+    if (!world.event) {
+      world.eventRemaining = 0;
+    }
+
     return {
       ...defaults,
       ...raw,
 
-      version: 4,
+      version: 5,
+      world,
       location,
       unlockedLocations,
 
@@ -805,6 +1086,7 @@ let toastTimer = null;
 let lastFrame = 0;
 
 const round = {
+  conditions: null,
   bait: "worm",
   power: 0,
   zone: "shore",
@@ -929,6 +1211,238 @@ function setTab(tab) {
   });
 
   renderAll();
+}
+
+/* =========================================
+   PHASE 5 — WORLD ENGINE
+========================================= */
+
+let worldLastTick = performance.now();
+let worldSaveAccumulator = 0;
+
+/* Weighted random weather */
+
+function rollWeather() {
+  const entries = Object.entries(WEATHER_TYPES);
+
+  const total = entries.reduce(
+    (sum, [, data]) => sum + data.weight,
+    0
+  );
+
+  let roll = Math.random() * total;
+
+  for (const [id, data] of entries) {
+    roll -= data.weight;
+
+    if (roll < 0) return id;
+  }
+
+  return "clear";
+}
+
+/* Weather transition */
+
+function changeWeather() {
+  const world = save.world;
+
+  world.weather = rollWeather();
+  world.weatherRemaining = WEATHER_DURATION;
+
+  const weather = WEATHER_TYPES[world.weather];
+
+  showToast(
+    `${weather.icon} Weather changed: ${weather.name}`
+  );
+}
+
+/* Random event activation */
+
+function startWorldEvent() {
+  const eventIds = Object.keys(WORLD_EVENTS);
+
+  const id = eventIds[
+    Math.floor(Math.random() * eventIds.length)
+  ];
+
+  save.world.event = id;
+  save.world.eventRemaining = EVENT_DURATION;
+  save.world.eventCooldown = 0;
+
+  const event = WORLD_EVENTS[id];
+
+  showToast(
+    `${event.icon} EVENT: ${event.name}!`
+  );
+}
+
+function endWorldEvent() {
+  save.world.event = null;
+  save.world.eventRemaining = 0;
+
+  // Delay until another event.
+  save.world.eventCooldown = rand(120, 240);
+
+  showToast("World event ended.");
+}
+
+/* =========================================
+   ADVANCE GAME TIME
+========================================= */
+
+function advanceWorld(dt) {
+  const world = save.world;
+
+  let changed = false;
+
+  // Advance clock.
+  world.minute += dt * GAME_MINUTES_PER_SECOND;
+
+  while (world.minute >= 1440) {
+    world.minute -= 1440;
+    world.day++;
+  }
+
+  // Weather duration.
+  world.weatherRemaining -= dt;
+
+  if (world.weatherRemaining <= 0) {
+    changeWeather();
+    changed = true;
+  }
+
+  // Random events.
+  if (world.event) {
+    world.eventRemaining -= dt;
+
+    if (world.eventRemaining <= 0) {
+      endWorldEvent();
+      changed = true;
+    }
+  } else {
+    world.eventCooldown -= dt;
+
+    if (world.eventCooldown <= 0) {
+      startWorldEvent();
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
+/* =========================================
+   WORLD UI
+========================================= */
+
+function renderWorld() {
+  const world = save.world;
+  const weather = WEATHER_TYPES[world.weather];
+  const period = getDaypart(world.minute);
+
+  const clock = formatWorldTime(world.minute);
+
+  $("worldClock").textContent =
+    `🕒 Day ${world.day} • ${clock}`;
+
+  $("weatherStatus").textContent =
+    `${weather.icon} ${weather.name}`;
+
+  $("worldTimeLabel").textContent =
+    DAYPART_LABELS[period];
+
+  $("worldWeatherLabel").textContent =
+    `${weather.icon} ${weather.name}`;
+
+  const scene = $("lakeScene");
+
+  // Preserve the existing area-* CSS class.
+  scene.classList.remove(
+    "time-morning",
+    "time-day",
+    "time-sunset",
+    "time-night",
+    "weather-clear",
+    "weather-cloudy",
+    "weather-rain",
+    "weather-storm",
+    "weather-fog"
+  );
+
+  scene.classList.add(
+    `time-${period}`,
+    `weather-${world.weather}`
+  );
+
+  // Dynamic event UI.
+  const eventBox = $("worldEvent");
+
+  if (world.event) {
+    const event = WORLD_EVENTS[world.event];
+
+    eventBox.classList.remove("hidden");
+
+    $("worldEventIcon").textContent = event.icon;
+
+    $("worldEventTitle").textContent = event.name;
+
+    $("worldEventDescription").textContent =
+      event.description;
+
+    $("worldEventTimer").textContent =
+      `${Math.ceil(world.eventRemaining)}s`;
+
+    $("worldConditionLabel").textContent =
+      `${event.icon} Event Active`;
+  } else {
+    eventBox.classList.add("hidden");
+
+    $("worldConditionLabel").textContent =
+      world.weather === "storm"
+        ? "⛈️ Dangerous Waters"
+        : world.weather === "rain"
+          ? "🌧️ Rain Fishing"
+          : period === "night"
+            ? "🌙 Night Fishing"
+            : "Normal Fishing";
+  }
+}
+
+/* =========================================
+   WORLD TIMER
+========================================= */
+
+function tickWorld() {
+  const now = performance.now();
+
+  // Clamp elapsed time to prevent a large jump.
+  const dt = clamp(
+    (now - worldLastTick) / 1000,
+    0,
+    2
+  );
+
+  worldLastTick = now;
+
+  // Pause while page is hidden or main menu is open.
+  if (
+    document.hidden ||
+    !$("menuOverlay").classList.contains("hidden")
+  ) {
+    return;
+  }
+
+  const changed = advanceWorld(dt);
+
+  renderWorld();
+
+  // Do not write localStorage every animation frame.
+  worldSaveAccumulator += dt;
+
+  if (changed || worldSaveAccumulator >= 10) {
+    writeSave();
+    worldSaveAccumulator = 0;
+  }
 }
 
 /* =========================================
@@ -1199,6 +1713,9 @@ function secretUnlocked() {
 function availableFish(zone) {
   const location = getCurrentLocation();
 
+  const conditions =
+    round.conditions || getWorldConditions();
+
   return location.fish
     .map(id => FISH_BY_ID[id])
     .filter(fish => {
@@ -1215,6 +1732,37 @@ function availableFish(zone) {
         return false;
       }
 
+      // Phantom Shark: storm or nighttime.
+      if (
+        fish.id === "phantom" &&
+        conditions.weather !== "storm" &&
+        conditions.time !== "night"
+      ) {
+        return false;
+      }
+
+      // Whisper of the Pond: foggy night.
+      if (
+        fish.id === "whisper" &&
+        (
+          conditions.weather !== "fog" ||
+          conditions.time !== "night"
+        )
+      ) {
+        return false;
+      }
+
+      // Abyss Leviathan: stormy night.
+      if (
+        fish.id === "leviathan" &&
+        (
+          conditions.weather !== "storm" ||
+          conditions.time !== "night"
+        )
+      ) {
+        return false;
+      }
+
       return true;
     });
 }
@@ -1222,17 +1770,48 @@ function availableFish(zone) {
 function getSpawnWeight(fish, perfect) {
   let weight = fish.spawn;
 
-  // Perfect Cast bonus.
+  const conditions =
+    round.conditions || getWorldConditions();
+
+  /* PERFECT CAST */
+
   if (perfect) {
-    weight *= RARITY_LUCK[fish.rarity];
+    weight *= RARITY_LUCK[fish.rarity] ?? 1;
   }
 
-  // Use bait locked in for this cast.
+  /* BAIT AFFINITY */
+
   const bait = BAITS[round.bait] || BAITS.worm;
 
-  const affinity = bait.affinity[fish.id] ?? 1;
+  weight *= bait.affinity[fish.id] ?? 1;
 
-  weight *= affinity;
+  /* WEATHER & TIME */
+
+  const environment = FISH_ENVIRONMENT[fish.id];
+
+  if (environment) {
+    weight *=
+      environment.weather?.[conditions.weather] ?? 1;
+
+    weight *=
+      environment.time?.[conditions.time] ?? 1;
+  }
+
+  /* SCHOOL OF FISH EVENT */
+
+  if (conditions.event === "school") {
+    const rareRarities = [
+      "Rare",
+      "Epic",
+      "Legendary",
+      "Mythic",
+      "Secret"
+    ];
+
+    if (rareRarities.includes(fish.rarity)) {
+      weight *= 3;
+    }
+  }
 
   return Math.max(0, weight);
 }
@@ -1286,7 +1865,11 @@ function generateCatch(fish) {
     size = "Large";
   }
 
-  const shiny = Math.random() < 1 / SHINY_RATE;
+  const shinyMultiplier =
+    round.conditions?.event === "rainbow" ? 5 : 1;
+
+  const shiny =
+    Math.random() < shinyMultiplier / SHINY_RATE;
 
   const averageWeight = (fish.min + fish.max) / 2;
 
@@ -1306,6 +1889,10 @@ function generateCatch(fish) {
     kind: "caught",
     id: fish.id,
     locationId: save.location,
+    weather: round.conditions?.weather ?? null,
+    timePeriod: round.conditions?.time ?? null,
+    gameDay: round.conditions?.day ?? null,
+    gameMinute: round.conditions?.minute ?? null,
     weight,
     length,
     size,
@@ -1406,6 +1993,7 @@ function startAiming() {
   round.power = 0;
   round.perfect = false;
   round.fish = null;
+  round.conditions = null;
 
   phase = "aiming";
   renderFishing();
@@ -1439,6 +2027,14 @@ function castLine() {
     round.zone = "deep";
   }
 
+  /* Snapshot world conditions at cast time */
+
+  round.conditions = {
+    ...getWorldConditions(),
+    day: save.world.day,
+    minute: save.world.minute
+  };
+
   phase = "waiting";
 
   writeSave();
@@ -1457,8 +2053,13 @@ function castLine() {
 
     const baseEmptyChance = round.perfect ? 0.08 : 0.12;
 
+    const frenzyBonus =
+      round.conditions?.event === "frenzy" ? 0.05 : 0;
+
     const emptyChance = clamp(
-      baseEmptyChance - activeBait.emptyBonus,
+      baseEmptyChance -
+      activeBait.emptyBonus -
+      frenzyBonus,
       0.02,
       0.4
     );
@@ -1485,7 +2086,9 @@ function castLine() {
     phase = "biting";
 
     renderFishing();
-  }, rand(1600, 3900) * BAITS[round.bait].waitMultiplier);
+  }, rand(1600, 3900) *
+   BAITS[round.bait].waitMultiplier *
+   (round.conditions?.event === "frenzy" ? 0.6 : 1));
 }
 
 /* =========================================
@@ -1564,6 +2167,7 @@ function endRound(kind) {
 function finishResult() {
   result = null;
   round.fish = null;
+  round.conditions = null;
   phase = "idle";
 
   renderAll();
@@ -1828,6 +2432,34 @@ function renderResult() {
     ["Ukuran", result.size || "Normal"],
     ["Harga jual", `🪙 ${fmt(result.price)}`]
   ];
+
+  if (result.weather) {
+    const weather = WEATHER_TYPES[result.weather];
+
+    stats.push([
+      "Cuaca",
+      `${weather.icon} ${weather.name}`
+    ]);
+  }
+
+  if (result.timePeriod) {
+    stats.push([
+      "Waktu",
+      DAYPART_LABELS[result.timePeriod]
+    ]);
+  }
+
+  if (
+    Number.isInteger(result.gameDay) &&
+    Number.isFinite(result.gameMinute)
+  ) {
+    stats.push([
+      "Caught At",
+      `Day ${result.gameDay} • ${
+        formatWorldTime(result.gameMinute)
+      }`
+    ]);
+  }
 
   stats.forEach(([label, value]) => {
     const item = document.createElement("div");
@@ -2348,6 +2980,7 @@ function renderAll() {
 
   // Location systems
   renderLocationScene();
+  renderWorld();
   renderLocations();
 
   // Existing systems
@@ -2670,10 +3303,12 @@ $("menuButton").addEventListener("click", () => {
   }
 
   $("continueButton").disabled = false;
+  worldLastTick = performance.now();
   $("menuOverlay").classList.remove("hidden");
 });
 
 $("continueButton").addEventListener("click", () => {
+  worldLastTick = performance.now();
   $("menuOverlay").classList.add("hidden");
   setTab("fishing");
 });
@@ -2700,6 +3335,11 @@ $("newGameButton").addEventListener("click", () => {
   round.bait = "worm";
   round.fish = null;
   round.perfect = false;
+
+  round.conditions = null;
+
+  worldLastTick = performance.now();
+  worldSaveAccumulator = 0;
 
   writeSave();
 
@@ -2728,3 +3368,20 @@ for (const location of Object.values(LOCATIONS)) {
 
 renderAll();
 requestAnimationFrame(frame);
+
+
+/* Start the Living World simulation */
+setInterval(tickWorld, 1000);
+
+/* Prevent background-tab time jumps */
+document.addEventListener("visibilitychange", () => {
+  worldLastTick = performance.now();
+
+  if (document.hidden && hasSavedGame) {
+    writeSave();
+  }
+});
+
+window.addEventListener("pagehide", () => {
+  if (hasSavedGame) writeSave();
+});

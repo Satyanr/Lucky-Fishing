@@ -15,7 +15,7 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.4.0</b></span>
+          <span>Cozy fishing adventure <b>v0.5.0</b></span>
         </div>
       </div>
       <div class="header-right">
@@ -53,10 +53,21 @@
 
             <h2 id="locationTitle">Village Pond</h2>
           </div>
-          <span class="weather-pill">☀️ Cerah</span>
+          <div class="world-status">
+            <span class="world-clock" id="worldClock">
+              🕒 Day 1 • 06:00
+            </span>
+
+            <span class="weather-pill" id="weatherStatus">
+              ☀️ Clear
+            </span>
+          </div>
         </div>
 
         <div class="lake-scene" id="lakeScene">
+          <div class="world-lighting" id="worldLighting"></div>
+          <div class="weather-effects" id="weatherEffects"></div>
+          <div class="world-stars" id="worldStars"></div>
           <div class="sun"></div>
           <div class="mountain mountain-far"></div>
           <div class="mountain mountain-near"></div>
@@ -73,6 +84,37 @@
           <div class="bite-alert hidden" id="biteAlert">❗ GIGITAN!</div>
           <div class="scene-note" id="sceneNote">Hari yang indah untuk memancing.</div>
           <div class="scene-zone" id="zoneText">📍 SHORE</div>
+        </div>
+
+        <div class="world-information">
+          <div class="world-info-item">
+            <span>TIME</span>
+            <strong id="worldTimeLabel">🌅 Morning</strong>
+          </div>
+
+          <div class="world-info-item">
+            <span>WEATHER</span>
+            <strong id="worldWeatherLabel">☀️ Clear</strong>
+          </div>
+
+          <div class="world-info-item">
+            <span>CONDITIONS</span>
+            <strong id="worldConditionLabel">Normal Fishing</strong>
+          </div>
+        </div>
+
+        <div class="world-event hidden" id="worldEvent"
+             role="status" aria-live="polite">
+          <span id="worldEventIcon">🌈</span>
+
+          <div>
+            <strong id="worldEventTitle">Rainbow</strong>
+            <p id="worldEventDescription">
+              Shiny chance increased!
+            </p>
+          </div>
+
+          <span id="worldEventTimer">60s</span>
         </div>
 
         <div class="location-footer">
@@ -255,10 +297,10 @@
           <div class="dex-progress">
             <div id="dexProgressFill"></div>
           </div>
-          
+
           <div class="dex-toolbar">
             <label for="rarityFilter">Filter rarity</label>
-          
+
             <select id="rarityFilter">
               <option value="All">Semua rarity</option>
               <option value="Common">Common</option>
@@ -269,7 +311,7 @@
               <option value="Mythic">Mythic</option>
               <option value="Secret">Secret</option>
             </select>
-          
+
             <label for="dexAreaFilter">Lokasi</label>
             <select id="dexAreaFilter">
               <option value="all">Semua lokasi</option>
@@ -295,7 +337,7 @@
         </div>
       </section>
     </main>
-    <footer>Lucky Fishing • Prototype Phase 4 • Semua progres tersimpan secara lokal di browser ini.</footer>
+    <footer>Lucky Fishing • Prototype Phase 5 • Semua progres tersimpan secara lokal di browser ini.</footer>
   </div>
 
   <div class="menu-overlay" id="menuOverlay">
@@ -306,7 +348,7 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.4.0 • Offline • Autosave</small>
+      <small>v0.5.0 • Offline • Autosave</small>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

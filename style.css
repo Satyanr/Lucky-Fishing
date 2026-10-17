@@ -737,3 +737,319 @@ body{background:radial-gradient(circle at 50% -10%,#25545d,#0b2027 58%);line-hei
     font-size: 11px;
   }
 }
+
+
+/* =========================================
+   LUCKY FISHING v0.5.0
+   PHASE 5 — LIVING WORLD
+========================================= */
+
+.world-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.world-clock {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 30px;
+  background: #203f4c;
+  border: 1px solid #456b76;
+  color: #e9f8f2;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* World information */
+
+.world-information {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 15px;
+  background: #112f38;
+}
+
+.world-info-item {
+  padding: 10px;
+  background: #20434c;
+  border: 1px solid #355b64;
+  border-radius: 11px;
+}
+
+.world-info-item span {
+  display: block;
+  color: #9cbec5;
+  font-size: 9px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.world-info-item strong {
+  display: block;
+  font-size: 11px;
+  color: #e6f9f0;
+  line-height: 1.4;
+}
+
+/* Dynamic event banner */
+
+.world-event {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0;
+  padding: 13px 17px;
+  border-top: 1px solid #6b9f82;
+  border-bottom: 1px solid #6b9f82;
+  background: linear-gradient(
+    110deg,
+    #235b54,
+    #244b63
+  );
+}
+
+#worldEventIcon {
+  font-size: 27px;
+}
+
+.world-event > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.world-event strong {
+  display: block;
+  font-size: 13px;
+  color: #c2ffe1;
+}
+
+.world-event p {
+  font-size: 11px;
+  color: #d1e8e6;
+  margin: 4px 0 0;
+}
+
+#worldEventTimer {
+  font-size: 13px;
+  font-weight: 900;
+  color: #f8d278;
+  font-variant-numeric: tabular-nums;
+}
+
+/* World layers */
+
+.world-lighting,
+.weather-effects,
+.world-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.world-lighting {
+  z-index: 3;
+  transition: background 2s ease;
+}
+
+.weather-effects {
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 1s;
+}
+
+.world-stars {
+  z-index: 1;
+  height: 55%;
+  opacity: 0;
+  background-image:
+    radial-gradient(circle, #fff 1px, transparent 2px),
+    radial-gradient(circle, #d3eaff 1px, transparent 2px),
+    radial-gradient(circle, #fff 1px, transparent 2px);
+  background-position:
+    20px 20px,
+    100px 45px,
+    180px 10px;
+  background-size:
+    130px 90px,
+    180px 110px,
+    220px 100px;
+  transition: opacity 2s;
+}
+
+/* Day/Night lighting */
+
+.lake-scene.time-morning .world-lighting {
+  background: linear-gradient(
+    180deg,
+    #ffe1a51c,
+    transparent 70%
+  );
+}
+
+.lake-scene.time-day .world-lighting {
+  background: transparent;
+}
+
+.lake-scene.time-sunset .world-lighting {
+  background: linear-gradient(
+    180deg,
+    #ef8c5969,
+    #ffbc6536 65%,
+    #502f631f
+  );
+}
+
+.lake-scene.time-night .world-lighting {
+  background: #061b46a8;
+}
+
+.lake-scene.time-night .world-stars {
+  opacity: 0.9;
+}
+
+/* Sun/moon adjustment */
+
+.lake-scene.time-sunset .sun {
+  background: #ffab7b;
+  top: 39%;
+  box-shadow: 0 0 75px #ff995cb0;
+}
+
+.lake-scene.time-night .sun {
+  background: #e0edff;
+  top: 12%;
+  width: 52px;
+  height: 52px;
+  box-shadow: 0 0 40px #d3dfff78;
+}
+
+/* Cloudy */
+
+.lake-scene.weather-cloudy .world-lighting {
+  background-color: #4e626b35;
+}
+
+/* Rain */
+
+.lake-scene.weather-rain .weather-effects,
+.lake-scene.weather-storm .weather-effects {
+  opacity: 0.8;
+  background-image:
+    repeating-linear-gradient(
+      105deg,
+      transparent 0 15px,
+      #dcf4ff91 16px,
+      transparent 17px 31px
+    );
+  background-size: 42px 95px;
+  animation: rainfall 0.38s linear infinite;
+}
+
+/* Storm */
+
+.lake-scene.weather-storm .weather-effects {
+  opacity: 1;
+  background-color: #071c3457;
+  animation: rainfall 0.25s linear infinite;
+}
+
+.lake-scene.weather-storm .world-lighting {
+  animation: lightning 9s linear infinite;
+}
+
+/* Fog */
+
+.lake-scene.weather-fog .weather-effects {
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    #cde5e555,
+    #ffffff8c,
+    #c5e4ea59,
+    #ffffff70
+  );
+  background-size: 200% 100%;
+  animation: fogDrift 11s ease-in-out infinite alternate;
+}
+
+/* Animations */
+
+@keyframes rainfall {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -42px 95px;
+  }
+}
+
+@keyframes fogDrift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes lightning {
+  0%, 92%, 95%, 98%, 100% {
+    filter: brightness(1);
+  }
+  93%, 97% {
+    filter: brightness(1.9);
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .location-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .world-status {
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+
+  .world-information {
+    padding: 9px;
+    gap: 5px;
+  }
+
+  .world-info-item {
+    padding: 8px 6px;
+  }
+
+  .world-info-item span {
+    font-size: 8px;
+  }
+
+  .world-info-item strong {
+    font-size: 10px;
+  }
+
+  .world-event {
+    padding: 11px;
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weather-effects,
+  .world-lighting,
+  .world-stars,
+  .sun {
+    animation: none !important;
+    transition: none !important;
+  }
+}
