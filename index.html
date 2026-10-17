@@ -15,7 +15,7 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.3.0</b></span>
+          <span>Cozy fishing adventure <b>v0.4.0</b></span>
         </div>
       </div>
       <div class="header-right">
@@ -35,17 +35,23 @@
       <button class="tab" data-tab="equipment" type="button">
         ⚙️ Equipment
       </button>
+      <button class="tab" data-tab="locations" type="button">
+        🗺️ Locations
+      </button>
       <button class="tab" data-tab="fishdex" type="button">📖 Fishdex</button>
       <button class="tab" data-tab="inventory" type="button">🎒 Inventory</button>
       <button class="tab" data-tab="achievements" type="button">🏆 Pencapaian</button>
     </nav>
 
     <main class="game-grid">
-      <section class="location-card" aria-label="Danau tempat memancing">
+      <section class="location-card" aria-labelledby="locationTitle">
         <div class="location-header">
           <div>
-            <span class="eyebrow">LOKASI 01 • STARTER AREA</span>
-            <h2>Village Pond</h2>
+            <span class="eyebrow" id="locationEyebrow">
+              LOCATION 01 • STARTER AREA
+            </span>
+
+            <h2 id="locationTitle">Village Pond</h2>
           </div>
           <span class="weather-pill">☀️ Cerah</span>
         </div>
@@ -70,8 +76,8 @@
         </div>
 
         <div class="location-footer">
-          <span>🌿 Danau pemula</span>
-          <span>🐟 <strong id="foundText">0/11</strong> spesies</span>
+          <span id="locationType">🌿 Danau pemula</span>
+          <span>🐟 <strong id="foundText">0/6</strong> spesies</span>
           <span>🎒 <strong id="keptText">0</strong> disimpan</span>
         </div>
       </section>
@@ -209,10 +215,43 @@
           </div>
         </div>
 
+        <div class="panel hidden" data-panel="locations">
+          <span class="eyebrow">WORLD EXPLORATION</span>
+          <h2>Fishing Locations</h2>
+
+          <p class="muted">
+            Jelajahi lokasi baru, tangkap spesies unik,
+            dan temukan area terbaik untuk berburu ikan langka.
+          </p>
+
+          <div class="exploration-summary">
+            <div>
+              <strong id="areaProgress">1 / 6</strong>
+              <span>Locations Unlocked</span>
+            </div>
+
+            <div>
+              <strong id="areaFishProgress">0 / 22</strong>
+              <span>Species Discovered</span>
+            </div>
+          </div>
+
+          <div id="locationList" class="location-list"></div>
+
+          <div class="help-card">
+            <strong>🧭 Exploration Guide</strong>
+            <p>
+              Setiap lokasi memiliki kumpulan spesies berbeda.
+              Area baru terbuka secara berurutan.
+              Upgrade Rod dan kumpulkan coin untuk menjelajah.
+            </p>
+          </div>
+        </div>
+
         <div class="panel hidden" data-panel="fishdex">
           <span class="eyebrow">DISCOVERY JOURNAL</span>
           <h2>Fishdex</h2>
-          <p class="muted" id="fishdexSummary">0 dari 11 spesies ditemukan.</p>
+          <p class="muted" id="fishdexSummary">0 dari 22 spesies ditemukan.</p>
           <div class="dex-progress">
             <div id="dexProgressFill"></div>
           </div>
@@ -231,6 +270,11 @@
               <option value="Secret">Secret</option>
             </select>
           
+            <label for="dexAreaFilter">Lokasi</label>
+            <select id="dexAreaFilter">
+              <option value="all">Semua lokasi</option>
+            </select>
+
             <span id="shinySummary">✨ 0 shiny</span>
           </div>
           <div class="item-list" id="fishdexList"></div>
@@ -251,7 +295,7 @@
         </div>
       </section>
     </main>
-    <footer>Lucky Fishing • Prototype Phase 3 • Semua progres tersimpan secara lokal di browser ini.</footer>
+    <footer>Lucky Fishing • Prototype Phase 4 • Semua progres tersimpan secara lokal di browser ini.</footer>
   </div>
 
   <div class="menu-overlay" id="menuOverlay">
@@ -262,7 +306,7 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.3.0 • Offline • Autosave</small>
+      <small>v0.4.0 • Offline • Autosave</small>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

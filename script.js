@@ -1,8 +1,8 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.3.0
-   PHASE 3 - EQUIPMENT & ECONOMY
+   LUCKY FISHING v0.4.0
+   PHASE 4 - LOCATIONS & EXPLORATION
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
@@ -165,6 +165,156 @@ const FISH = [
   }
 ];
 
+/* =========================================
+   PHASE 4 — NEW FISH SPECIES
+========================================= */
+
+FISH.push(
+  {
+    id: "trout",
+    name: "Rainbow Trout",
+    icon: "🐟",
+    rarity: "Uncommon",
+    min: 0.3,
+    max: 5,
+    length: [20, 80],
+    strength: 0.43,
+    price: 70,
+    spawn: 20,
+    zones: ["shore", "mid"]
+  },
+  {
+    id: "arowana",
+    name: "Golden Arowana",
+    icon: "🐉",
+    rarity: "Rare",
+    min: 1,
+    max: 13,
+    length: [35, 120],
+    strength: 0.85,
+    price: 300,
+    spawn: 3,
+    zones: ["mid", "deep"]
+  },
+  {
+    id: "snapper",
+    name: "Red Snapper",
+    icon: "🐠",
+    rarity: "Common",
+    min: 0.6,
+    max: 9,
+    length: [20, 90],
+    strength: 0.48,
+    price: 95,
+    spawn: 26,
+    zones: ["shore", "mid"]
+  },
+  {
+    id: "grouper",
+    name: "Giant Grouper",
+    icon: "🐟",
+    rarity: "Uncommon",
+    min: 2,
+    max: 24,
+    length: [35, 145],
+    strength: 0.85,
+    price: 180,
+    spawn: 16,
+    zones: ["mid", "deep"]
+  },
+  {
+    id: "mackerel",
+    name: "King Mackerel",
+    icon: "🐟",
+    rarity: "Common",
+    min: 0.4,
+    max: 6,
+    length: [25, 95],
+    strength: 0.58,
+    price: 90,
+    spawn: 30,
+    zones: ["shore", "mid"]
+  },
+  {
+    id: "parrotfish",
+    name: "Rainbow Parrotfish",
+    icon: "🐠",
+    rarity: "Uncommon",
+    min: 0.5,
+    max: 8,
+    length: [20, 85],
+    strength: 0.65,
+    price: 145,
+    spawn: 17,
+    zones: ["shore", "mid"]
+  },
+  {
+    id: "tuna",
+    name: "Bluefin Tuna",
+    icon: "🐟",
+    rarity: "Rare",
+    min: 12,
+    max: 130,
+    length: [80, 230],
+    strength: 1.02,
+    price: 950,
+    spawn: 3.8,
+    zones: ["mid", "deep"]
+  },
+  {
+    id: "marlin",
+    name: "Blue Marlin",
+    icon: "🐬",
+    rarity: "Epic",
+    min: 28,
+    max: 240,
+    length: [140, 330],
+    strength: 1.18,
+    price: 2400,
+    spawn: 0.6,
+    zones: ["deep"]
+  },
+  {
+    id: "angler",
+    name: "Abyss Anglerfish",
+    icon: "🐡",
+    rarity: "Rare",
+    min: 1,
+    max: 15,
+    length: [25, 100],
+    strength: 0.9,
+    price: 650,
+    spawn: 4,
+    zones: ["shore", "mid", "deep"]
+  },
+  {
+    id: "phantom",
+    name: "Phantom Shark",
+    icon: "🦈",
+    rarity: "Legendary",
+    min: 40,
+    max: 300,
+    length: [180, 500],
+    strength: 1.3,
+    price: 5200,
+    spawn: 0.13,
+    zones: ["deep"]
+  },
+  {
+    id: "leviathan",
+    name: "Abyss Leviathan",
+    icon: "🐉",
+    rarity: "Secret",
+    min: 100,
+    max: 800,
+    length: [300, 900],
+    strength: 1.5,
+    price: 20000,
+    spawn: 0.009,
+    zones: ["deep"]
+  }
+);
+
 const FISH_BY_ID = Object.fromEntries(
   FISH.map(fish => [fish.id, fish])
 );
@@ -308,12 +458,140 @@ const HOOK_COSTS = {
 };
 
 /* =========================================
+   PHASE 4 — WORLD LOCATION DATABASE
+========================================= */
+
+const LOCATIONS = {
+  village: {
+    id: "village",
+    order: 1,
+    name: "Village Pond",
+    icon: "🏡",
+    type: "🌿 Danau pemula",
+    tag: "STARTER AREA",
+    description:
+      "Danau kecil yang tenang. Tempat terbaik untuk belajar memancing.",
+    cost: 0,
+    catches: 0,
+    rod: 1,
+    previous: null,
+    fish: [
+      "nila", "mas", "lele", "gurame",
+      "patin", "golden"
+    ]
+  },
+
+  forest: {
+    id: "forest",
+    order: 2,
+    name: "Forest River",
+    icon: "🌲",
+    type: "🌲 Sungai hutan",
+    tag: "WOODLAND",
+    description:
+      "Sungai yang mengalir melewati hutan. " +
+      "Rainbow Trout dan Golden Arowana menunggu di sini.",
+    cost: 200,
+    catches: 8,
+    rod: 1,
+    previous: "village",
+    fish: [
+      "nila", "mas", "lele", "gurame",
+      "patin", "trout", "arowana", "golden"
+    ]
+  },
+
+  crystal: {
+    id: "crystal",
+    order: 3,
+    name: "Crystal Lake",
+    icon: "💎",
+    type: "💎 Danau kristal",
+    tag: "MYSTICAL LAKE",
+    description:
+      "Danau biru berkilau yang menyimpan ikan-ikan mistis.",
+    cost: 750,
+    catches: 20,
+    rod: 2,
+    previous: "forest",
+    fish: [
+      "mas", "patin", "golden", "crystal",
+      "moon", "ancient", "astral"
+    ]
+  },
+
+  tropical: {
+    id: "tropical",
+    order: 4,
+    name: "Tropical Beach",
+    icon: "🏝️",
+    type: "🏝️ Pantai tropis",
+    tag: "TROPICAL COAST",
+    description:
+      "Perairan hangat dengan ikan karang dan ikan laut.",
+    cost: 1600,
+    catches: 35,
+    rod: 3,
+    previous: "crystal",
+    fish: [
+      "snapper", "grouper", "mackerel",
+      "parrotfish", "tuna"
+    ]
+  },
+
+  ocean: {
+    id: "ocean",
+    order: 5,
+    name: "Open Ocean",
+    icon: "🌊",
+    type: "🌊 Laut lepas",
+    tag: "OPEN WATERS",
+    description:
+      "Perairan luas yang menyimpan Tuna, Marlin, " +
+      "dan predator laut langka.",
+    cost: 3400,
+    catches: 50,
+    rod: 3,
+    previous: "tropical",
+    fish: [
+      "snapper", "grouper", "mackerel",
+      "parrotfish", "tuna", "marlin", "phantom"
+    ]
+  },
+
+  deep: {
+    id: "deep",
+    order: 6,
+    name: "Deep Sea",
+    icon: "🌑",
+    type: "🌑 Laut dalam",
+    tag: "ABYSSAL WATERS",
+    description:
+      "Perairan misterius. Spesies Mythic dan Secret " +
+      "dapat ditemukan di kedalaman.",
+    cost: 7500,
+    catches: 80,
+    rod: 4,
+    previous: "ocean",
+    fish: [
+      "angler", "tuna", "marlin", "phantom",
+      "astral", "whisper", "leviathan"
+    ]
+  }
+};
+
+const LOCATION_IDS = Object.keys(LOCATIONS);
+
+/* =========================================
    SAVE SYSTEM
 ========================================= */
 
 function freshSave() {
   return {
-    version: 3,
+    version: 4,
+    location: "village",
+
+    unlockedLocations: ["village"],
     coins: 100,
 
     // Worm stock (compatible with v0.2)
@@ -414,6 +692,11 @@ function readSave() {
       return {
         kind: "caught",
         id: item.id,
+        locationId:
+          typeof item.locationId === "string" &&
+          Object.hasOwn(LOCATIONS, item.locationId)
+            ? item.locationId
+            : null,
         weight: item.weight,
         price: Math.floor(item.price),
         length: Number.isFinite(item.length) && item.length > 0
@@ -452,11 +735,35 @@ function readSave() {
       fishdex[fish.id] = entry;
     });
 
+    /* Migration v0.3 -> v0.4 */
+
+    const unlockedSet = new Set(["village"]);
+
+    if (Array.isArray(raw.unlockedLocations)) {
+      for (const id of raw.unlockedLocations) {
+        if (typeof id === "string" &&
+            Object.hasOwn(LOCATIONS, id)) {
+          unlockedSet.add(id);
+        }
+      }
+    }
+
+    const unlockedLocations = [...unlockedSet];
+
+    const location =
+      typeof raw.location === "string" &&
+      unlockedSet.has(raw.location) &&
+      Object.hasOwn(LOCATIONS, raw.location)
+        ? raw.location
+        : "village";
+
     return {
       ...defaults,
       ...raw,
 
-      version: 3,
+      version: 4,
+      location,
+      unlockedLocations,
 
       coins: Math.max(0, Math.floor(raw.coins)),
       bait: Math.max(0, Math.floor(raw.bait)),
@@ -625,6 +932,263 @@ function setTab(tab) {
 }
 
 /* =========================================
+   PHASE 4 — LOCATION SYSTEM
+========================================= */
+
+function getCurrentLocation() {
+  return LOCATIONS[save.location] || LOCATIONS.village;
+}
+
+function isLocationUnlocked(id) {
+  return id === "village" ||
+    save.unlockedLocations.includes(id);
+}
+
+function getLocationProgress(id) {
+  const location = Object.hasOwn(LOCATIONS, id) ? LOCATIONS[id] : null;
+
+  if (!location) {
+    return { found: 0, total: 0, percent: 0 };
+  }
+
+  const total = location.fish.length;
+
+  const found = location.fish.filter(
+    fishId => Boolean(save.fishdex[fishId])
+  ).length;
+
+  return {
+    found,
+    total,
+    percent: total ? Math.round(found / total * 100) : 0
+  };
+}
+
+function getMissingRequirements(location) {
+  const missing = [];
+
+  if (
+    location.previous &&
+    !isLocationUnlocked(location.previous)
+  ) {
+    missing.push(
+      `Buka ${LOCATIONS[location.previous].name} dahulu`
+    );
+  }
+
+  if (save.stats.catches < location.catches) {
+    missing.push(
+      `Perlu ${location.catches} total tangkapan`
+    );
+  }
+
+  if (save.rod < location.rod) {
+    missing.push(`Perlu Rod Lv.${location.rod}`);
+  }
+
+  if (save.coins < location.cost) {
+    missing.push(`Perlu ${fmt(location.cost)} coins`);
+  }
+
+  return missing;
+}
+
+function travelToLocation(id) {
+  if (!Object.hasOwn(LOCATIONS, id)) return;
+  const location = LOCATIONS[id];
+
+  if (!location) return;
+
+  // Prevent changing the world during a fishing session.
+  if (phase !== "idle") {
+    showToast("Selesaikan hasil memancing sebelum berpindah.");
+    return;
+  }
+
+  if (save.location === id) {
+    showToast("Kamu sudah berada di lokasi ini.");
+    return;
+  }
+
+  if (!isLocationUnlocked(id)) {
+    const missing = getMissingRequirements(location);
+
+    if (missing.length) {
+      showToast(missing[0]);
+      return;
+    }
+
+    // One-time unlock purchase.
+    save.coins -= location.cost;
+    save.unlockedLocations.push(id);
+
+    showToast(`🗺️ ${location.name} berhasil dibuka!`);
+  } else {
+    showToast(`📍 Pergi ke ${location.name}`);
+  }
+
+  save.location = id;
+
+  round.zone = "shore";
+  round.fish = null;
+  round.power = 0;
+  round.perfect = false;
+
+  writeSave();
+
+  renderAll();
+  setTab("fishing");
+}
+
+/* =========================================
+   LOCATION UI
+========================================= */
+
+function renderLocationScene() {
+  const location = getCurrentLocation();
+  const progress = getLocationProgress(location.id);
+
+  $("locationTitle").textContent = location.name;
+
+  $("locationEyebrow").textContent =
+    `LOCATION ${String(location.order).padStart(2, "0")} • ` +
+    location.tag;
+
+  $("locationType").textContent = location.type;
+
+  $("lakeScene").className =
+    `lake-scene area-${location.id}`;
+
+  $("foundText").textContent =
+    `${progress.found}/${progress.total}`;
+
+  const zoneNames = ["shore", "mid", "deep"];
+
+  document.querySelectorAll(".meter-labels span")
+    .forEach((element, index) => {
+      element.textContent = displayZone(zoneNames[index]);
+    });
+}
+
+function renderLocations() {
+  const list = $("locationList");
+  list.replaceChildren();
+
+  const unlocked = LOCATION_IDS.filter(
+    isLocationUnlocked
+  ).length;
+
+  const discovered = FISH.filter(
+    fish => Boolean(save.fishdex[fish.id])
+  ).length;
+
+  $("areaProgress").textContent =
+    `${unlocked} / ${LOCATION_IDS.length}`;
+
+  $("areaFishProgress").textContent =
+    `${discovered} / ${FISH.length}`;
+
+  for (const location of Object.values(LOCATIONS)) {
+    const active = save.location === location.id;
+    const owned = isLocationUnlocked(location.id);
+    const progress = getLocationProgress(location.id);
+    const missing = owned
+      ? []
+      : getMissingRequirements(location);
+
+    const card = document.createElement("article");
+
+    card.className = [
+      "location-option",
+      active ? "is-current" : "",
+      !owned ? "is-locked" : ""
+    ].filter(Boolean).join(" ");
+
+    const header = document.createElement("div");
+    header.className = "location-option-header";
+
+    const icon = document.createElement("div");
+    icon.className = "location-option-icon";
+    icon.textContent = owned ? location.icon : "🔒";
+
+    const titleBox = document.createElement("div");
+    titleBox.className = "location-option-title";
+
+    const name = document.createElement("strong");
+    name.textContent = location.name;
+
+    const subtitle = document.createElement("small");
+    subtitle.textContent =
+      `${location.tag} • ${progress.found}/${progress.total} species`;
+
+    titleBox.append(name, subtitle);
+    header.append(icon, titleBox);
+
+    const description = document.createElement("p");
+    description.className = "location-option-description";
+    description.textContent = location.description;
+
+    const meta = document.createElement("div");
+    meta.className = "location-option-meta";
+
+    const details = [
+      `🎣 Rod Lv.${location.rod}`,
+      `🐟 ${location.catches} catches`,
+      location.cost
+        ? `🪙 ${fmt(location.cost)} unlock`
+        : "Free"
+    ];
+
+    for (const detail of details) {
+      const chip = document.createElement("span");
+      chip.className = "location-chip";
+      chip.textContent = detail;
+      meta.append(chip);
+    }
+
+    const progressTrack = document.createElement("div");
+    progressTrack.className = "location-option-progress";
+
+    const progressFill = document.createElement("div");
+    progressFill.style.width = `${progress.percent}%`;
+
+    progressTrack.append(progressFill);
+
+    card.append(header, description, meta, progressTrack);
+
+    if (!owned && missing.length) {
+      const requirement = document.createElement("p");
+      requirement.className = "location-requirements";
+      requirement.textContent =
+        `🔒 ${missing.join(" • ")}`;
+
+      card.append(requirement);
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "location-action";
+    button.dataset.locationId = location.id;
+
+    if (active) {
+      button.textContent = "✓ Current Location";
+    } else if (owned) {
+      button.textContent = "➜ Travel";
+    } else {
+      button.textContent =
+        `🔓 Unlock & Travel • 🪙 ${fmt(location.cost)}`;
+    }
+
+    button.disabled =
+      active || phase !== "idle" ||
+      (!owned && missing.length > 0);
+
+    card.append(button);
+    list.append(card);
+  }
+}
+
+/* =========================================
    FISH SPAWN & RNG
 ========================================= */
 
@@ -633,15 +1197,26 @@ function secretUnlocked() {
 }
 
 function availableFish(zone) {
-  return FISH.filter(fish => {
-    if (!fish.zones.includes(zone)) return false;
+  const location = getCurrentLocation();
 
-    if (fish.rarity === "Secret" && !secretUnlocked()) {
-      return false;
-    }
+  return location.fish
+    .map(id => FISH_BY_ID[id])
+    .filter(fish => {
+      if (!fish) return false;
 
-    return true;
-  });
+      if (!fish.zones.includes(zone)) {
+        return false;
+      }
+
+      if (
+        fish.rarity === "Secret" &&
+        !secretUnlocked()
+      ) {
+        return false;
+      }
+
+      return true;
+    });
 }
 
 function getSpawnWeight(fish, perfect) {
@@ -730,6 +1305,7 @@ function generateCatch(fish) {
   return {
     kind: "caught",
     id: fish.id,
+    locationId: save.location,
     weight,
     length,
     size,
@@ -894,6 +1470,11 @@ function castLine() {
 
     round.fish = pickFish(round.zone, round.perfect);
 
+    if (!round.fish) {
+      endRound("empty");
+      return;
+    }
+
     const baseWindow = HOOK_WINDOWS[round.fish.rarity];
 
     const hookBonus = (save.hook - 1) * 190;
@@ -1025,6 +1606,20 @@ function handleResult(action) {
    FISHING INTERFACE
 ========================================= */
 
+function displayZone(zone) {
+  if (["tropical", "ocean", "deep"].includes(save.location)) {
+    const seaZones = {
+      shore: "NEAR",
+      mid: "MID",
+      deep: "FAR"
+    };
+
+    return seaZones[zone];
+  }
+
+  return ZONES[zone];
+}
+
 function renderFishing() {
   const titles = {
     idle: [
@@ -1037,7 +1632,7 @@ function renderFishing() {
     ],
     waiting: [
       "Menunggu gigitan...",
-      `Kail berada di zona ${ZONES[round.zone]}.`
+      `Kail berada di zona ${displayZone(round.zone)}.`
     ],
     biting: [
       "⚡ IKAN MENGGIGIT!",
@@ -1095,7 +1690,7 @@ function renderFishing() {
     showFish && round.fish.strength >= 0.9
   );
 
-  $("zoneText").textContent = `📍 ${ZONES[round.zone]}`;
+  $("zoneText").textContent = `📍 ${displayZone(round.zone)}`;
 
   const notes = {
     idle: "Hari yang indah untuk memancing.",
@@ -1485,10 +2080,22 @@ function renderFishdex() {
     `✨ ${fmt(save.stats.shinyCatches)} shiny`;
 
   const filter = $("rarityFilter").value;
+  const areaFilter = $("dexAreaFilter").value;
 
-  const visibleFish = FISH.filter(
-    fish => filter === "All" || fish.rarity === filter
-  );
+  const areaFish =
+    areaFilter === "all"
+      ? null
+      : LOCATIONS[areaFilter]?.fish ?? [];
+
+  const visibleFish = FISH.filter(fish => {
+    const rarityMatches =
+      filter === "All" || fish.rarity === filter;
+
+    const locationMatches =
+      areaFish === null || areaFish.includes(fish.id);
+
+    return rarityMatches && locationMatches;
+  });
 
   visibleFish.forEach(fish => {
     const entry = save.fishdex[fish.id];
@@ -1686,6 +2293,18 @@ function renderAchievements() {
       Boolean(save.fishdex.astral)
     ],
     [
+      "🧭",
+      "World Explorer",
+      "Buka seluruh lokasi memancing",
+      LOCATION_IDS.every(isLocationUnlocked)
+    ],
+    [
+      "🌊",
+      "Ocean Explorer",
+      "Buka Open Ocean",
+      isLocationUnlocked("ocean")
+    ],
+    [
       "📖", "Professor Fish", "Lengkapi Fishdex",
       FISH.every(fish => Boolean(save.fishdex[fish.id]))
     ]
@@ -1713,26 +2332,25 @@ function renderAchievements() {
 ========================================= */
 
 function renderAll() {
+  const activeBait = BAITS[save.selectedBait] || BAITS.worm;
+
   $("coinsText").textContent = fmt(save.coins);
 
-  const activeBait = BAITS[save.selectedBait];
-
   $("baitIcon").textContent = activeBait.icon;
+
   $("baitText").textContent =
-    fmt(getBaitCount(save.selectedBait));
+    fmt(getBaitCount(activeBait.id));
 
   $("rodText").textContent = `Lv.${save.rod}`;
-
-  const found = FISH.filter(
-    fish => Boolean(save.fishdex[fish.id])
-  ).length;
-
-  $("foundText").textContent =
-    `${found}/${FISH.length}`;
 
   $("keptText").textContent =
     fmt(save.inventory.length);
 
+  // Location systems
+  renderLocationScene();
+  renderLocations();
+
+  // Existing systems
   renderFishing();
   renderShop();
   renderEquipment();
@@ -1931,6 +2549,27 @@ $("rarityFilter").addEventListener(
 );
 
 /* =========================================
+   PHASE 4 — LOCATION EVENTS
+========================================= */
+
+// Location card buttons.
+$("locationList").addEventListener("click", event => {
+  const button = event.target.closest(
+    "button[data-location-id]"
+  );
+
+  if (!button) return;
+
+  travelToLocation(button.dataset.locationId);
+});
+
+// Fishdex location filter.
+$("dexAreaFilter").addEventListener(
+  "change",
+  renderFishdex
+);
+
+/* =========================================
    SHOP EVENTS
 ========================================= */
 
@@ -2073,6 +2712,19 @@ $("newGameButton").addEventListener("click", () => {
 ========================================= */
 
 $("continueButton").disabled = !hasSavedGame;
+
+/* Populate location options in Fishdex */
+
+const dexAreaFilter = $("dexAreaFilter");
+
+for (const location of Object.values(LOCATIONS)) {
+  const option = document.createElement("option");
+
+  option.value = location.id;
+  option.textContent = location.name;
+
+  dexAreaFilter.append(option);
+}
 
 renderAll();
 requestAnimationFrame(frame);

@@ -374,3 +374,366 @@ body{background:radial-gradient(circle at 50% -10%,#25545d,#0b2027 58%);line-hei
     padding: 9px;
   }
 }
+
+
+/* =====================================
+   LUCKY FISHING v0.4.0
+   LOCATIONS & EXPLORATION
+===================================== */
+
+.location-list {
+  display: grid;
+  gap: 13px;
+  margin-top: 18px;
+}
+
+.exploration-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.exploration-summary > div {
+  padding: 15px;
+  background: #1c3d46;
+  border: 1px solid #365d61;
+  border-radius: 13px;
+}
+
+.exploration-summary strong {
+  display: block;
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.exploration-summary span {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.location-option {
+  padding: 15px;
+  background: #1a3b43;
+  border: 1px solid #365861;
+  border-radius: 15px;
+}
+
+.location-option.is-current {
+  border-color: #8ce6bc;
+  background: #214a43;
+}
+
+.location-option.is-locked {
+  background: #17323a;
+}
+
+.location-option-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.location-option-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: #325961;
+  font-size: 25px;
+}
+
+.location-option-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.location-option-title strong {
+  display: block;
+  font-size: 14px;
+}
+
+.location-option-title small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #aac7c8;
+}
+
+.location-option-description {
+  margin: 12px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #bfd5d4;
+}
+
+.location-option-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.location-chip {
+  padding: 6px 9px;
+  border-radius: 20px;
+  background: #2c5358;
+  color: #d3e9e5;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.location-option-progress {
+  height: 7px;
+  background: #0c2932;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.location-option-progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, #42bca4, #b3ecc0);
+  border-radius: inherit;
+  transition: width .3s ease;
+}
+
+.location-action {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  background: #8ce6bc;
+  color: #153c34;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.location-action:disabled {
+  background: #395961;
+  color: #acc5c5;
+  cursor: not-allowed;
+}
+
+.location-requirements {
+  font-size: 11px;
+  color: #dfc793;
+  margin: 0 0 11px;
+  line-height: 1.6;
+}
+
+/* =====================================
+   LOCATION SCENE THEMES
+===================================== */
+
+/* Village Pond */
+.lake-scene.area-village {
+  background: linear-gradient(
+    180deg,
+    #7bbfc5 0%,
+    #bcdfcd 56%,
+    #7da97d 100%
+  );
+}
+
+/* Forest River */
+.lake-scene.area-forest {
+  background: linear-gradient(
+    180deg,
+    #4e9b8e 0%,
+    #83b5a0 53%,
+    #477864 100%
+  );
+}
+
+.area-forest .mountain-far {
+  background: #397769;
+}
+
+.area-forest .mountain-near {
+  background: #245747;
+}
+
+.area-forest .shoreline {
+  background: #4f8766;
+}
+
+.area-forest .water {
+  background: linear-gradient(
+    180deg,
+    #54a49d,
+    #287d79,
+    #164f59
+  );
+}
+
+/* Crystal Lake */
+.lake-scene.area-crystal {
+  background: linear-gradient(
+    180deg,
+    #7979b5 0%,
+    #b5b4d6 52%,
+    #629ca8 100%
+  );
+}
+
+.area-crystal .sun {
+  background: #f5dcff;
+  box-shadow: 0 0 60px #d7aaff;
+}
+
+.area-crystal .mountain-far {
+  background: #8886b8;
+}
+
+.area-crystal .mountain-near {
+  background: #626d9e;
+}
+
+.area-crystal .shoreline {
+  background: #85aac0;
+}
+
+.area-crystal .water {
+  background: linear-gradient(
+    180deg,
+    #83e5e5,
+    #598cc4,
+    #3d568e
+  );
+}
+
+/* Tropical Beach */
+.lake-scene.area-tropical {
+  background: linear-gradient(
+    180deg,
+    #74c7eb,
+    #b9e9e2 52%,
+    #e8d4a0 100%
+  );
+}
+
+.area-tropical .sun {
+  background: #fff1a3;
+  box-shadow: 0 0 65px #ffeaa0;
+}
+
+.area-tropical .mountain-far {
+  background: #92c9a9;
+}
+
+.area-tropical .mountain-near {
+  background: #4da58b;
+}
+
+.area-tropical .shoreline {
+  background: #edd39d;
+}
+
+.area-tropical .water {
+  background: linear-gradient(
+    180deg,
+    #50d5cf,
+    #169bb8,
+    #166a9e
+  );
+}
+
+/* Open Ocean */
+.lake-scene.area-ocean {
+  background: linear-gradient(
+    180deg,
+    #498db6,
+    #a3d2df 54%,
+    #4c9db9 100%
+  );
+}
+
+.area-ocean .mountain,
+.area-ocean .shoreline {
+  opacity: 0;
+}
+
+.area-ocean .water {
+  height: 48%;
+  background: linear-gradient(
+    180deg,
+    #4eacc4,
+    #22749e,
+    #174d79
+  );
+}
+
+/* Deep Sea */
+.lake-scene.area-deep {
+  background: linear-gradient(
+    180deg,
+    #102b4a,
+    #16405d 48%,
+    #0b1e40 100%
+  );
+}
+
+.area-deep .sun {
+  background: #a7ceff;
+  opacity: .35;
+  box-shadow: 0 0 75px #5d93e8;
+}
+
+.area-deep .mountain,
+.area-deep .shoreline {
+  opacity: 0;
+}
+
+.area-deep .water {
+  height: 56%;
+  background: linear-gradient(
+    180deg,
+    #164d73,
+    #102c59,
+    #07182f
+  );
+}
+
+.area-deep .water-stripe {
+  background: #74baff59;
+}
+
+.area-deep .fish-shadow {
+  background: rgba(7, 16, 40, .75);
+  filter: blur(4px) drop-shadow(0 0 8px #5cd6ee);
+}
+
+.area-deep .scene-note,
+.area-deep .scene-zone {
+  background: #091a35c9;
+  border-color: #5c92a078;
+}
+
+/* =====================================
+   RESPONSIVENESS
+===================================== */
+
+@media (max-width: 480px) {
+  .location-option {
+    padding: 12px;
+  }
+
+  .location-option-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 23px;
+  }
+
+  .location-option-title strong {
+    font-size: 13px;
+  }
+
+  .location-option-description {
+    font-size: 11px;
+  }
+}
