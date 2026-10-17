@@ -1854,3 +1854,6 @@ body.reduce-motion .aquarium-fish *,body.low-effects .aquarium-fish *{animation:
 .lake-scene:is(.weather-rain,.weather-storm) .cloud-drift{fill:#80939e;opacity:.85}
 .lake-scene.weather-rain .world-lighting{background:linear-gradient(#40596c66,#354e631a)}
 .lake-scene.area-tropical .foreground-bank{fill:#d6bd8a}
+
+.fishing-bait-picker{display:grid;gap:6px;font-size:11px;color:var(--muted);margin:16px 0 10px}
+.fishing-bait-picker select{width:100%;min-width:0;padding:11px 12px;border:1px solid #4b7477;border-radius:10px;background:#163b44;color:var(--text);font:inherit;font-size:13px}

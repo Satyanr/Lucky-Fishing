@@ -467,12 +467,23 @@ const ZONES = {
 ========================================= */
 
 const BAITS = {
+  none: {
+    id: "none",
+    name: "Tanpa Umpan",
+    icon: "\u{1F3A3}",
+    description: "Gratis tanpa batas. 12% ikan, 60% sampah jual, 28% kosong.",
+    price: 0,
+    bundle: 0,
+    emptyBonus: 0,
+    waitMultiplier: 1.2,
+    affinity: {}
+  },
   worm: {
     id: "worm",
     name: "Worm",
     icon: "🪱",
     description: "Umpan dasar. Cocok untuk Nila dan Lele.",
-    price: 25,
+    price: 10,
     bundle: 5,
     emptyBonus: 0,
     waitMultiplier: 1,
@@ -487,7 +498,7 @@ const BAITS = {
     name: "Bread",
     icon: "🍞",
     description: "Menarik Ikan Mas dan Gurame.",
-    price: 45,
+    price: 20,
     bundle: 5,
     emptyBonus: 0.015,
     waitMultiplier: 1,
@@ -502,7 +513,7 @@ const BAITS = {
     name: "Shrimp",
     icon: "🦐",
     description: "Menarik Patin, Crystal Bass, dan Moon Koi.",
-    price: 85,
+    price: 40,
     bundle: 5,
     emptyBonus: 0.025,
     waitMultiplier: 0.9,
@@ -518,7 +529,7 @@ const BAITS = {
     name: "Glow Worm",
     icon: "✨",
     description: "Umpan premium untuk mencari ikan langka.",
-    price: 140,
+    price: 70,
     bundle: 2,
     emptyBonus: 0.04,
     waitMultiplier: 0.85,
@@ -1614,6 +1625,17 @@ let fishingHiddenAt = null;
 function resolveWaitingBite() {
   if (externalSaveConflict || phase !== "waiting" || document.hidden || fishingHiddenAt !== null) return;
 
+  if (round.bait === "none") {
+    const roll = Math.random();
+    if (roll < 0.60) {
+      endRound("treasure");
+      return;
+    }
+    if (roll < 0.88) {
+      endRound("empty");
+      return;
+    }
+  } else {
   const activeBait = BAITS[round.bait] || BAITS.worm;
   const baseEmptyChance = round.perfect ? 0.08 : 0.12;
 
@@ -1638,6 +1660,8 @@ function resolveWaitingBite() {
   if (Math.random() < getTreasureChance()) {
     endRound("treasure");
     return;
+  }
+
   }
 
   /* Fish spawn */
@@ -2147,6 +2171,7 @@ function renderBossJournal() {
 ========================================= */
 
 function getBaitCount(id) {
+  if (id === "none") return 1;
   if (id === "worm") {
     return save.bait;
   }
@@ -2155,6 +2180,7 @@ function getBaitCount(id) {
 }
 
 function changeBaitCount(id, amount) {
+  if (id === "none") return true;
   if (!Object.hasOwn(BAITS, id) || !Number.isInteger(amount)) {
     return false;
   }
@@ -2174,6 +2200,7 @@ function changeBaitCount(id, amount) {
 }
 
 function buyBait(id) {
+  if (id === "none") return;
   if (!Object.hasOwn(BAITS, id)) return;
   const bait = BAITS[id];
 
@@ -2650,7 +2677,11 @@ function rollTreasure() {
 }
 
 function generateTreasureResult() {
-  const item = rollTreasure();
+  // Free fishing produces sellable junk, never premium treasure or map fragments.
+  const junk = Object.values(TREASURE_ITEMS).filter(item => item.rarity === "Junk");
+  const item = round.bait === "none"
+    ? junk[Math.floor(Math.random() * junk.length)]
+    : rollTreasure();
 
   if (item.id === "fragment") {
     // Claim immediately, exactly once.
@@ -4096,7 +4127,7 @@ function startAiming() {
 
   if (!bait || getBaitCount(save.selectedBait) < 1) {
     showToast(
-      "Umpan pilihan habis! Pilih bait lain atau beli di Shop."
+      "Umpan habis! Pilih Tanpa Umpan (gratis) di pilihan umpan, atau beli di Shop."
     );
     return;
   }
@@ -4511,9 +4542,23 @@ function renderFishing() {
 
   const bait = BAITS[baitId];
 
-  $("activeBaitHint").textContent =
-    `${bait.icon} ${bait.name} • ` +
-    `${fmt(getBaitCount(baitId))} tersisa`;
+  $("activeBaitHint").textContent = baitId === "none"
+    ? "Tanpa Umpan / Gratis / 12% ikan, 60% sampah jual"
+    : bait.name + " / " + fmt(getBaitCount(baitId)) + " tersisa";
+  const selector = $("fishingBaitSelect");
+  selector.replaceChildren();
+  Object.values(BAITS).forEach(optionBait => {
+    const option = document.createElement("option");
+    option.value = optionBait.id;
+    const count = getBaitCount(optionBait.id);
+    option.textContent = optionBait.id === "none"
+      ? "Tanpa Umpan (gratis)"
+      : optionBait.name + " (" + fmt(count) + ")";
+    option.disabled = count < 1;
+    selector.append(option);
+  });
+  selector.value = baitId;
+  selector.disabled = !["idle", "result"].includes(phase);
 
   if (phase === "result" && result) {
     renderResult();
@@ -4574,8 +4619,8 @@ function renderResult() {
       );
     } else {
       $("resultDescription").textContent =
-        `Kamu menemukan ${item.name}! ` +
-        `Nilai jual: 🪙 ${fmt(result.price)}`;
+        (item.rarity === "Junk" ? "Sampah ini masih bisa dijual. " : "Temuan dari perairan. ") +
+        "Nilai jual: " + fmt(result.price) + " coins";
 
       addResultButton(
         "🪙 Jual",
@@ -4776,7 +4821,7 @@ function renderShop() {
   baitList.replaceChildren();
 
   Object.values(BAITS).forEach(bait => {
-    if (bait.id === "worm") return;
+    if (bait.id === "worm" || bait.id === "none") return;
 
     const row = document.createElement("div");
     row.className = "store-item";
@@ -4945,7 +4990,7 @@ function renderEquipment() {
     description.textContent = bait.description;
 
     const stock = document.createElement("small");
-    stock.textContent = `Stock: ${fmt(count)} bait`;
+    stock.textContent = bait.id === "none" ? "Gratis / tanpa batas" : `Stock: ${fmt(count)} bait`;
 
     info.append(title, description, stock);
 
@@ -5480,7 +5525,7 @@ function renderAll() {
   $("baitIcon").textContent = activeBait.icon;
 
   $("baitText").textContent =
-    fmt(getBaitCount(activeBait.id));
+    activeBait.id === "none" ? "Gratis" : fmt(getBaitCount(activeBait.id));
 
   $("rodText").textContent =
     `Lv.${save.rod}`;
@@ -5774,6 +5819,15 @@ $("locationList").addEventListener("click", event => {
   if (!button) return;
 
   travelToLocation(button.dataset.locationId);
+});
+
+$("fishingBaitSelect").addEventListener("change", () => {
+  const id = $("fishingBaitSelect").value;
+  if (!["idle", "result"].includes(phase) || externalSaveConflict ||
+      !Object.hasOwn(BAITS, id) || getBaitCount(id) < 1) return;
+  save.selectedBait = id;
+  writeSave();
+  renderAll();
 });
 
 // Fishdex location filter.
