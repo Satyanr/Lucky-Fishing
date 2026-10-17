@@ -1,8 +1,8 @@
 "use strict";
 
 /* =========================================
-   LUCKY FISHING v0.2.0
-   PHASE 2 - FISH & COLLECTION SYSTEM
+   LUCKY FISHING v0.3.0
+   PHASE 3 - EQUIPMENT & ECONOMY
 ========================================= */
 
 const SAVE_KEY = "lucky-fishing-save-v1";
@@ -226,18 +226,116 @@ const ZONES = {
 };
 
 /* =========================================
+   PHASE 3 — EQUIPMENT DATABASE
+========================================= */
+
+const BAITS = {
+  worm: {
+    id: "worm",
+    name: "Worm",
+    icon: "🪱",
+    description: "Umpan dasar. Cocok untuk Nila dan Lele.",
+    price: 25,
+    bundle: 5,
+    emptyBonus: 0,
+    waitMultiplier: 1,
+    affinity: {
+      nila: 1.5,
+      lele: 1.4
+    }
+  },
+
+  bread: {
+    id: "bread",
+    name: "Bread",
+    icon: "🍞",
+    description: "Menarik Ikan Mas dan Gurame.",
+    price: 45,
+    bundle: 5,
+    emptyBonus: 0.015,
+    waitMultiplier: 1,
+    affinity: {
+      mas: 1.8,
+      gurame: 1.6
+    }
+  },
+
+  shrimp: {
+    id: "shrimp",
+    name: "Shrimp",
+    icon: "🦐",
+    description: "Menarik Patin, Crystal Bass, dan Moon Koi.",
+    price: 85,
+    bundle: 5,
+    emptyBonus: 0.025,
+    waitMultiplier: 0.9,
+    affinity: {
+      patin: 2,
+      crystal: 1.8,
+      moon: 1.4
+    }
+  },
+
+  glow: {
+    id: "glow",
+    name: "Glow Worm",
+    icon: "✨",
+    description: "Umpan premium untuk mencari ikan langka.",
+    price: 140,
+    bundle: 2,
+    emptyBonus: 0.04,
+    waitMultiplier: 0.85,
+    affinity: {
+      golden: 2.1,
+      moon: 1.7,
+      ancient: 1.7,
+      astral: 1.5,
+      whisper: 1.3
+    }
+  }
+};
+
+const REEL_COSTS = {
+  1: 160,
+  2: 440,
+  3: 900
+};
+
+const HOOK_COSTS = {
+  1: 110,
+  2: 300,
+  3: 650
+};
+
+/* =========================================
    SAVE SYSTEM
 ========================================= */
 
 function freshSave() {
   return {
-    version: 2,
+    version: 3,
     coins: 100,
+
+    // Worm stock (compatible with v0.2)
     bait: 8,
+
+    // Permanent equipment levels
     rod: 1,
+    reel: 1,
+    hook: 1,
+
+    // Consumable bait inventory
+    selectedBait: "worm",
+    baitStock: {
+      bread: 0,
+      shrimp: 0,
+      glow: 0
+    },
+
     fishdex: {},
     inventory: [],
     pendingCatch: null,
+
     stats: {
       casts: 0,
       catches: 0,
@@ -271,6 +369,37 @@ function readSave() {
     }
 
     const defaults = freshSave();
+
+    /* Migration v0.2 -> v0.3 */
+
+    const baitStock = {
+      bread: 0,
+      shrimp: 0,
+      glow: 0
+    };
+
+    for (const id of Object.keys(baitStock)) {
+      const count = raw.baitStock?.[id];
+
+      baitStock[id] = Number.isFinite(count)
+        ? Math.max(0, Math.floor(count))
+        : 0;
+    }
+
+    const reel = Number.isInteger(raw.reel)
+      ? clamp(raw.reel, 1, 4)
+      : 1;
+
+    const hook = Number.isInteger(raw.hook)
+      ? clamp(raw.hook, 1, 4)
+      : 1;
+
+    const selectedBait = Object.hasOwn(
+      BAITS,
+      raw.selectedBait
+    )
+      ? raw.selectedBait
+      : "worm";
 
     const nonnegative = value =>
       Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -326,9 +455,17 @@ function readSave() {
     return {
       ...defaults,
       ...raw,
-      version: 2,
+
+      version: 3,
+
       coins: Math.max(0, Math.floor(raw.coins)),
       bait: Math.max(0, Math.floor(raw.bait)),
+
+      reel,
+      hook,
+      selectedBait,
+      baitStock,
+
       stats,
       fishdex,
       inventory,
@@ -361,6 +498,7 @@ let toastTimer = null;
 let lastFrame = 0;
 
 const round = {
+  bait: "worm",
   power: 0,
   zone: "shore",
   perfect: false,
@@ -372,6 +510,79 @@ const round = {
   reel: false,
   nextDash: 0
 };
+
+/* =========================================
+   BAIT INVENTORY & ECONOMY
+========================================= */
+
+function getBaitCount(id) {
+  if (id === "worm") {
+    return save.bait;
+  }
+
+  return save.baitStock[id] ?? 0;
+}
+
+function changeBaitCount(id, amount) {
+  if (!Object.hasOwn(BAITS, id) || !Number.isInteger(amount)) {
+    return false;
+  }
+
+  const current = getBaitCount(id);
+  const next = current + amount;
+
+  if (next < 0) return false;
+
+  if (id === "worm") {
+    save.bait = next;
+  } else {
+    save.baitStock[id] = next;
+  }
+
+  return true;
+}
+
+function buyBait(id) {
+  if (!Object.hasOwn(BAITS, id)) return;
+  const bait = BAITS[id];
+
+  if (!bait || save.coins < bait.price) {
+    showToast("Coin tidak mencukupi!");
+    return;
+  }
+
+  save.coins -= bait.price;
+  changeBaitCount(id, bait.bundle);
+
+  writeSave();
+  renderAll();
+
+  showToast(
+    `Berhasil membeli ${bait.bundle} ${bait.name}!`
+  );
+}
+
+function upgradeGear(type, costs) {
+  if (!["reel", "hook"].includes(type)) return;
+
+  const level = save[type];
+  const cost = costs[level];
+
+  if (!cost || save.coins < cost) {
+    showToast("Upgrade tidak tersedia atau coin kurang.");
+    return;
+  }
+
+  save.coins -= cost;
+  save[type]++;
+
+  writeSave();
+  renderAll();
+
+  showToast(
+    `${type.toUpperCase()} meningkat ke Lv.${save[type]}!`
+  );
+}
 
 /* =========================================
    GENERAL UI
@@ -436,11 +647,19 @@ function availableFish(zone) {
 function getSpawnWeight(fish, perfect) {
   let weight = fish.spawn;
 
+  // Perfect Cast bonus.
   if (perfect) {
     weight *= RARITY_LUCK[fish.rarity];
   }
 
-  return weight;
+  // Use bait locked in for this cast.
+  const bait = BAITS[round.bait] || BAITS.worm;
+
+  const affinity = bait.affinity[fish.id] ?? 1;
+
+  weight *= affinity;
+
+  return Math.max(0, weight);
 }
 
 function pickFish(zone, perfect = false) {
@@ -599,8 +818,12 @@ function perfectPower() {
 }
 
 function startAiming() {
-  if (save.bait < 1) {
-    showToast("Umpan habis! Beli di Shop.");
+  const bait = BAITS[save.selectedBait];
+
+  if (!bait || getBaitCount(save.selectedBait) < 1) {
+    showToast(
+      "Umpan pilihan habis! Pilih bait lain atau beli di Shop."
+    );
     return;
   }
 
@@ -615,7 +838,16 @@ function startAiming() {
 function castLine() {
   if (phase !== "aiming") return;
 
-  save.bait--;
+  round.bait = save.selectedBait;
+
+  if (getBaitCount(round.bait) < 1) {
+    showToast("Umpan pilihan habis!");
+    phase = "idle";
+    renderFishing();
+    return;
+  }
+
+  changeBaitCount(round.bait, -1);
   save.stats.casts++;
 
   const power = round.power;
@@ -645,7 +877,15 @@ function castLine() {
   pendingTimer = setTimeout(() => {
     if (phase !== "waiting") return;
 
-    const emptyChance = round.perfect ? 0.08 : 0.12;
+    const activeBait = BAITS[round.bait];
+
+    const baseEmptyChance = round.perfect ? 0.08 : 0.12;
+
+    const emptyChance = clamp(
+      baseEmptyChance - activeBait.emptyBonus,
+      0.02,
+      0.4
+    );
 
     if (Math.random() < emptyChance) {
       endRound("empty");
@@ -654,13 +894,17 @@ function castLine() {
 
     round.fish = pickFish(round.zone, round.perfect);
 
+    const baseWindow = HOOK_WINDOWS[round.fish.rarity];
+
+    const hookBonus = (save.hook - 1) * 190;
+
     round.deadline =
-      performance.now() + HOOK_WINDOWS[round.fish.rarity];
+      performance.now() + baseWindow + hookBonus;
 
     phase = "biting";
 
     renderFishing();
-  }, rand(1600, 3900));
+  }, rand(1600, 3900) * BAITS[round.bait].waitMultiplier);
 }
 
 /* =========================================
@@ -889,6 +1133,21 @@ function renderFishing() {
     `Perfect Cast: power ${sweet - 6}%–${sweet + 6}%. ` +
     "Bonus peluang rarity dan gigitan.";
 
+  /* Active bait information */
+
+  const fishingActive =
+    ["waiting", "biting", "battle"].includes(phase);
+
+  const baitId = fishingActive
+    ? round.bait
+    : save.selectedBait;
+
+  const bait = BAITS[baitId];
+
+  $("activeBaitHint").textContent =
+    `${bait.icon} ${bait.name} • ` +
+    `${fmt(getBaitCount(baitId))} tersisa`;
+
   if (phase === "result" && result) {
     renderResult();
   }
@@ -998,25 +1257,205 @@ function renderResult() {
 ========================================= */
 
 function renderShop() {
-  const cost = ROD_COSTS[save.rod];
+  /* ROD UPGRADE */
+
+  const rodCost = ROD_COSTS[save.rod];
 
   $("upgradeTitle").textContent =
-    save.rod === 4
+    save.rod >= 4
       ? "Master Rod (MAX)"
       : `Upgrade Rod Lv.${save.rod} → Lv.${save.rod + 1}`;
 
   $("upgradeDescription").textContent =
     save.rod === 1
       ? "Membuka zona Deep."
-      : "Meningkatkan jangkauan dan kontrol tali.";
+      : "Meningkatkan jangkauan dan kontrol tension.";
 
   $("upgradeButton").textContent =
-    cost ? `🪙 ${fmt(cost)}` : "MAX LEVEL";
+    rodCost ? `🪙 ${fmt(rodCost)}` : "MAX LEVEL";
 
   $("upgradeButton").disabled =
-    !cost || save.coins < cost;
+    !rodCost || save.coins < rodCost;
 
-  $("buyBaitButton").disabled = save.coins < 25;
+  /* WORM BAIT */
+
+  $("buyBaitButton").textContent =
+    `🪙 ${fmt(BAITS.worm.price)}`;
+
+  $("buyBaitButton").disabled =
+    save.coins < BAITS.worm.price;
+
+  /* OTHER BAITS */
+
+  const baitList = $("baitShopList");
+  baitList.replaceChildren();
+
+  Object.values(BAITS).forEach(bait => {
+    if (bait.id === "worm") return;
+
+    const row = document.createElement("div");
+    row.className = "store-item";
+
+    const icon = document.createElement("div");
+    icon.className = "store-icon";
+    icon.textContent = bait.icon;
+
+    const details = document.createElement("div");
+    details.className = "store-details";
+
+    const title = document.createElement("h3");
+    title.textContent = `${bait.name} × ${bait.bundle}`;
+
+    const description = document.createElement("p");
+    description.textContent = bait.description;
+
+    details.append(title, description);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "buy-button";
+    button.dataset.buyBait = bait.id;
+    button.textContent = `🪙 ${fmt(bait.price)}`;
+    button.disabled = save.coins < bait.price;
+
+    row.append(icon, details, button);
+    baitList.append(row);
+  });
+
+  /* REEL & HOOK UPGRADES */
+
+  const upgrades = [
+    {
+      type: "reel",
+      titleId: "reelUpgradeTitle",
+      buttonId: "reelUpgradeButton",
+      costs: REEL_COSTS,
+      label: "Reel"
+    },
+    {
+      type: "hook",
+      titleId: "hookUpgradeTitle",
+      buttonId: "hookUpgradeButton",
+      costs: HOOK_COSTS,
+      label: "Hook"
+    }
+  ];
+
+  upgrades.forEach(item => {
+    const level = save[item.type];
+    const cost = item.costs[level];
+
+    $(item.titleId).textContent =
+      level >= 4
+        ? `${item.label} Lv.4 (MAX)`
+        : `Upgrade ${item.label} Lv.${level} → Lv.${level + 1}`;
+
+    $(item.buttonId).textContent =
+      cost ? `🪙 ${fmt(cost)}` : "MAX LEVEL";
+
+    $(item.buttonId).disabled =
+      !cost || save.coins < cost;
+  });
+}
+
+/* =========================================
+   EQUIPMENT LOADOUT UI
+========================================= */
+
+function renderEquipment() {
+  const summary = $("equipmentSummary");
+  const baitList = $("baitEquipmentList");
+
+  summary.replaceChildren();
+  baitList.replaceChildren();
+
+  /* EQUIPPED PERMANENT GEAR */
+
+  const equippedGear = [
+    {
+      icon: "🎣",
+      name: "Rod",
+      level: save.rod,
+      info: "Casting & control"
+    },
+    {
+      icon: "⚙️",
+      name: "Reel",
+      level: save.reel,
+      info: "Speed & tension"
+    },
+    {
+      icon: "🪝",
+      name: "Hook",
+      level: save.hook,
+      info: "Reaction time"
+    }
+  ];
+
+  equippedGear.forEach(gear => {
+    const card = document.createElement("div");
+    card.className = "gear-card";
+
+    const icon = document.createElement("div");
+    icon.className = "gear-icon";
+    icon.textContent = gear.icon;
+
+    const title = document.createElement("strong");
+    title.textContent = `${gear.name} Lv.${gear.level}`;
+
+    const description = document.createElement("span");
+    description.textContent = gear.info;
+
+    card.append(icon, title, description);
+    summary.append(card);
+  });
+
+  /* SELECTABLE BAITS */
+
+  Object.values(BAITS).forEach(bait => {
+    const count = getBaitCount(bait.id);
+    const selected = save.selectedBait === bait.id;
+
+    const card = document.createElement("div");
+
+    card.className =
+      `bait-card ${selected ? "selected" : ""}`;
+
+    const icon = document.createElement("div");
+    icon.className = "bait-icon";
+    icon.textContent = bait.icon;
+
+    const info = document.createElement("div");
+    info.className = "bait-info";
+
+    const title = document.createElement("strong");
+    title.textContent = bait.name;
+
+    const description = document.createElement("small");
+    description.textContent = bait.description;
+
+    const stock = document.createElement("small");
+    stock.textContent = `Stock: ${fmt(count)} bait`;
+
+    info.append(title, description, stock);
+
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.className = "bait-select-button";
+    button.dataset.equipBait = bait.id;
+
+    button.textContent = selected
+      ? "✓ Equipped"
+      : count > 0
+        ? "Equip"
+        : "Empty";
+
+    button.disabled = selected || count < 1;
+
+    card.append(icon, info, button);
+    baitList.append(card);
+  });
 }
 
 /* =========================================
@@ -1275,18 +1714,28 @@ function renderAchievements() {
 
 function renderAll() {
   $("coinsText").textContent = fmt(save.coins);
-  $("baitText").textContent = fmt(save.bait);
+
+  const activeBait = BAITS[save.selectedBait];
+
+  $("baitIcon").textContent = activeBait.icon;
+  $("baitText").textContent =
+    fmt(getBaitCount(save.selectedBait));
+
   $("rodText").textContent = `Lv.${save.rod}`;
 
   const found = FISH.filter(
     fish => Boolean(save.fishdex[fish.id])
   ).length;
 
-  $("foundText").textContent = `${found}/${FISH.length}`;
-  $("keptText").textContent = fmt(save.inventory.length);
+  $("foundText").textContent =
+    `${found}/${FISH.length}`;
+
+  $("keptText").textContent =
+    fmt(save.inventory.length);
 
   renderFishing();
   renderShop();
+  renderEquipment();
   renderFishdex();
   renderInventory();
   renderAchievements();
@@ -1333,21 +1782,37 @@ function frame(now) {
     const strength = round.fish.strength;
 
     if (round.reel) {
-      round.distance -= (
-        32 + save.rod * 4 - strength * 7
-      ) * dt;
+      // Rod gives general pull power.
+      // Reel improves retrieval speed.
+      const pullSpeed =
+        32 +
+        save.rod * 4 +
+        (save.reel - 1) * 7 -
+        strength * 7;
 
-      round.tension += (
-        21 + strength * 18 - save.rod * 2.6
-      ) * dt;
+      round.distance -= pullSpeed * dt;
+
+      // Better reels reduce tension buildup.
+      const tensionIncrease =
+        21 +
+        strength * 18 -
+        save.rod * 2.6 -
+        (save.reel - 1) * 3.5;
+
+      round.tension += Math.max(2, tensionIncrease) * dt;
     } else {
+      // Fish slowly moves away when not reeling.
       round.distance += (
         2 + strength * 7
       ) * dt;
 
-      round.tension -= (
-        31 + save.rod * 4
-      ) * dt;
+      // Recovery improves with equipment.
+      const tensionRecovery =
+        31 +
+        save.rod * 4 +
+        (save.reel - 1) * 2;
+
+      round.tension -= tensionRecovery * dt;
     }
 
     if (now >= round.nextDash) {
@@ -1470,15 +1935,7 @@ $("rarityFilter").addEventListener(
 ========================================= */
 
 $("buyBaitButton").addEventListener("click", () => {
-  if (save.coins < 25) return;
-
-  save.coins -= 25;
-  save.bait += 5;
-
-  writeSave();
-  renderAll();
-
-  showToast("Berhasil membeli 5 Worm Bait!");
+  buyBait("worm");
 });
 
 $("upgradeButton").addEventListener("click", () => {
@@ -1494,6 +1951,74 @@ $("upgradeButton").addEventListener("click", () => {
 
   showToast(`Rod naik ke Lv.${save.rod}!`);
 });
+
+/* =========================================
+   PHASE 3 — SHOP & EQUIPMENT EVENTS
+========================================= */
+
+// Buy Bread, Shrimp, or Glow Worm.
+$("baitShopList").addEventListener("click", event => {
+  const button = event.target.closest(
+    "button[data-buy-bait]"
+  );
+
+  if (!button) return;
+
+  const id = button.dataset.buyBait;
+
+  if (!Object.hasOwn(BAITS, id)) return;
+
+  buyBait(id);
+});
+
+// Upgrade Reel.
+$("reelUpgradeButton").addEventListener(
+  "click",
+  () => {
+    upgradeGear("reel", REEL_COSTS);
+  }
+);
+
+// Upgrade Hook.
+$("hookUpgradeButton").addEventListener(
+  "click",
+  () => {
+    upgradeGear("hook", HOOK_COSTS);
+  }
+);
+
+// Change equipped bait.
+$("baitEquipmentList").addEventListener(
+  "click",
+  event => {
+    const button = event.target.closest(
+      "button[data-equip-bait]"
+    );
+
+    if (!button) return;
+
+    const id = button.dataset.equipBait;
+
+    if (!Object.hasOwn(BAITS, id)) return;
+
+    if (!["idle", "result"].includes(phase)) {
+      showToast("Tidak bisa ganti umpan saat memancing.");
+      return;
+    }
+
+    if (getBaitCount(id) < 1) {
+      showToast("Bait habis! Beli di Shop.");
+      return;
+    }
+
+    save.selectedBait = id;
+
+    writeSave();
+    renderAll();
+
+    showToast(`${BAITS[id].name} berhasil dipasang!`);
+  }
+);
 
 /* =========================================
    MAIN MENU
@@ -1533,6 +2058,7 @@ $("newGameButton").addEventListener("click", () => {
   phase = "idle";
 
   round.zone = "shore";
+  round.bait = "worm";
   round.fish = null;
   round.perfect = false;
 

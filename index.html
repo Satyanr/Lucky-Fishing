@@ -15,12 +15,15 @@
         <div class="brand-icon">🎣</div>
         <div>
           <h1>Lucky Fishing</h1>
-          <span>Cozy fishing adventure <b>v0.2.0</b></span>
+          <span>Cozy fishing adventure <b>v0.3.0</b></span>
         </div>
       </div>
       <div class="header-right">
         <div class="resource">🪙 <strong id="coinsText">100</strong></div>
-        <div class="resource">🪱 <strong id="baitText">8</strong></div>
+        <div class="resource">
+  <span id="baitIcon">🪱</span>
+  <strong id="baitText">8</strong>
+</div>
         <div class="resource">🎣 <strong id="rodText">Lv.1</strong></div>
         <button class="small-button" id="menuButton" type="button">☰ Menu</button>
       </div>
@@ -29,6 +32,9 @@
     <nav class="tabs" aria-label="Navigasi permainan">
       <button class="tab active" data-tab="fishing" type="button">🎣 Memancing</button>
       <button class="tab" data-tab="shop" type="button">🛒 Shop</button>
+      <button class="tab" data-tab="equipment" type="button">
+        ⚙️ Equipment
+      </button>
       <button class="tab" data-tab="fishdex" type="button">📖 Fishdex</button>
       <button class="tab" data-tab="inventory" type="button">🎒 Inventory</button>
       <button class="tab" data-tab="achievements" type="button">🏆 Pencapaian</button>
@@ -104,6 +110,10 @@
             <div class="result-actions" id="resultActions"></div>
           </div>
 
+          <div class="active-bait-hint" id="activeBaitHint">
+            🪱 Equipped: Worm
+          </div>
+
           <button class="primary-button" id="actionButton" type="button">🎯 Mulai Casting</button>
           <div class="help-card">
             <strong>💡 Cara bermain</strong>
@@ -125,7 +135,78 @@
             <div class="store-details"><h3 id="upgradeTitle">Upgrade Rod</h3><p id="upgradeDescription">Buka jarak lemparan baru.</p></div>
             <button class="buy-button" id="upgradeButton" type="button">🪙 120</button>
           </div>
+          <h3 class="equipment-heading">Other Baits</h3>
+          <div id="baitShopList"></div>
+
+          <h3 class="equipment-heading">Equipment Upgrades</h3>
+
+          <div class="store-item">
+            <div class="store-icon">⚙️</div>
+
+            <div class="store-details">
+              <h3 id="reelUpgradeTitle">Upgrade Reel</h3>
+              <p>
+                Meningkatkan kecepatan menarik ikan
+                dan mengurangi kenaikan tension.
+              </p>
+            </div>
+
+            <button
+              class="buy-button"
+              id="reelUpgradeButton"
+              type="button"
+            >🪙 160</button>
+          </div>
+
+          <div class="store-item">
+            <div class="store-icon">🪝</div>
+
+            <div class="store-details">
+              <h3 id="hookUpgradeTitle">Upgrade Hook</h3>
+              <p>
+                Memperpanjang waktu reaksi saat ikan menggigit.
+              </p>
+            </div>
+
+            <button
+              class="buy-button"
+              id="hookUpgradeButton"
+              type="button"
+            >🪙 110</button>
+          </div>
           <div class="help-card"><strong>ℹ️ Rod progression</strong><p>Lv.1: Shore/Mid • Lv.2+: Deep • level berikutnya meningkatkan kontrol tension.</p></div>
+        </div>
+
+        <div class="panel hidden" data-panel="equipment">
+          <span class="eyebrow">FISHING LOADOUT</span>
+          <h2>My Equipment</h2>
+
+          <p class="muted">
+            Atur perlengkapan sebelum memancing.
+            Rod, Reel, dan Hook otomatis menggunakan
+            level upgrade tertinggi.
+          </p>
+
+          <h3 class="equipment-heading">Equipped Gear</h3>
+          <div id="equipmentSummary" class="equipment-summary"></div>
+
+          <h3 class="equipment-heading">Select Bait</h3>
+          <p class="muted">
+            Jenis umpan memengaruhi peluang ikan yang
+            menggigit. Umpan habis setiap casting.
+          </p>
+
+          <div id="baitEquipmentList" class="bait-equipment-list"></div>
+
+          <div class="help-card">
+            <strong>💡 Equipment Tips</strong>
+            <p>
+              Gunakan Bread untuk ikan air tawar tertentu,
+              Shrimp untuk ikan kedalaman, dan Glow Worm
+              untuk meningkatkan peluang spesies langka.
+              Tidak ada umpan yang menjamin hasil.
+            </p>
+          </div>
         </div>
 
         <div class="panel hidden" data-panel="fishdex">
@@ -170,7 +251,7 @@
         </div>
       </section>
     </main>
-    <footer>Lucky Fishing • Prototype Phase 2 • Semua progres tersimpan secara lokal di browser ini.</footer>
+    <footer>Lucky Fishing • Prototype Phase 3 • Semua progres tersimpan secara lokal di browser ini.</footer>
   </div>
 
   <div class="menu-overlay" id="menuOverlay">
@@ -181,7 +262,7 @@
       <p>Mulai petualangan memancing santai, temukan ikan langka, dan tingkatkan perlengkapanmu.</p>
       <button class="primary-button" id="continueButton" type="button">▶ Continue</button>
       <button class="secondary-button" id="newGameButton" type="button">＋ New Game</button>
-      <small>v0.2.0 • Offline • Autosave</small>
+      <small>v0.3.0 • Offline • Autosave</small>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
